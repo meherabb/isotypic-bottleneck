@@ -1,0 +1,13 @@
+{
+  "total_training_wallclock_sec": 15205.32728600502,
+  "n_runs": 70,
+  "mean_wallclock_per_run_sec": 217.21896122864314,
+  "modular_model_params": 214656,
+  "parity_model_params": 8602,
+  "s4_model_params": 205184,
+  "device": "cuda",
+  "gpu_name": "Tesla T4",
+  "gpu_max_memory_allocated_mb": 473.4,
+  "gpu_max_memory_reserved_mb": 780.1,
+  "modular_est_samples_per_sec": 487953.1724462776
+}

@@ -1,0 +1,14 @@
+{
+  "python_version": "3.12.13",
+  "os": "Linux-6.12.90+-x86_64-with-glibc2.35",
+  "torch_version": "2.10.0+cu128",
+  "cuda_available": true,
+  "cuda_version": "12.8",
+  "gpu_name": "Tesla T4",
+  "gpu_memory_gb": 15.64,
+  "numpy_version": "2.0.2",
+  "pandas_version": "2.3.3",
+  "scipy_version": "1.16.3",
+  "matplotlib_version": "3.10.0",
+  "runtime": "kaggle"
+}
