@@ -1,0 +1,35 @@
+# Raw training checkpoints and per-run metric cache are deliberately not
+# tracked here: 70 runs of optimizer state + model weights + RNG state
+# comes to ~150MB, which doesn't belong in a git history. Every number
+# derivable from them is already in results/ (logs/master_metric_log.csv
+# has the full per-step, per-run trace; results/tables/ and results/metrics/
+# have every aggregate reported in the paper). Re-running notebooks/
+# isotypic_bottleneck.ipynb end-to-end regenerates both directories from
+# scratch in ~4.2 GPU-hours on a single T4.
+outputs/checkpoints/
+outputs/cache/
+checkpoints/
+cache/
+
+# Standard Python / Jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.egg-info/
+.venv/
+venv/
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+paper/*.synctex.gz
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.toc
+
+# OS cruft
+.DS_Store
+Thumbs.db
