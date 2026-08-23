@@ -35,6 +35,7 @@
 \usepackage{nicefrac}
 \usepackage{microtype}
 \usepackage{xcolor}
+\definecolor{navy}{RGB}{0,0,140}
 \usepackage{graphicx}
 \usepackage{subcaption}
 \usepackage{multirow}
@@ -50,10 +51,11 @@
 \title{The Isotypic Bottleneck: A Representation-Theoretic Bound on Rank Collapse During Grokking, and Its Limits as a Precursor Signal}
 
 \author{%
-  Anonymous Author(s) \\
-  Anonymous Institution \\
-  Anonymous City, Anonymous Country \\
-  \texttt{anonymous@email}
+  Md Muntaqim Meherab \\
+  Department of Computer Science and Engineering \\
+  Daffodil International University \\
+  Dhaka, Bangladesh \\
+  \texttt{[email address]}
 }
 
 % Confirmed from neurips_2026.sty's own source: it never loads hyperref
@@ -94,12 +96,7 @@ family that contributes no within-family evidence, gives $r=0.97$
 representation-theoretic alignment score, rather than raw rank, restores a
 usable precursor on sparse parity, and find that it does not: across seven
 signal/task combinations and two independent statistical tests, no
-Bonferroni-corrected result supports it. In its place we report an unrelated,
-independently-motivated finding: a weight-decay-driven ``clock'' derived from
-the optimizer's own decay dynamics acts as a valid, if loose, lower bound on
-generalization time in $25$ of $30$ runs, and the five exceptions are exactly
-the five runs that independently fail a delayed-generalization diagnostic.
-Finally, we report a controlled experiment
+Bonferroni-corrected result supports it. Finally, we report a controlled experiment
 disentangling why the symmetric group $S_4$ never converges within budget:
 neither $S_4$ nor $D_4$ reaches our grokking criterion at any of five tested
 weight-decay values, ruling out weight decay alone as the explanation, though
@@ -109,7 +106,7 @@ essentially none ($3$--$9\%$ across fifteen runs, against a $4.2\%$ chance
 rate). We report all of this, including the negative results, because we
 believe an honest account of what a representation-theoretic bound does and
 does not predict is more useful than a narrower story that only reports the
-parts that worked.
+parts that worked. Code link {\hypersetup{urlcolor=navy}\url{https://anonymous.4open.science/r/isotypic-bottleneck-DCF5/}}
 \end{abstract}
 
 \section{Introduction}
@@ -172,8 +169,8 @@ degeneracy, since irrep dimensions there are not all equal; we test $S_4$
 this reason. This choice mattered in a way we did not anticipate: $S_4$
 never converges within budget at any tested weight decay
 (\S\ref{sec:disentangle}), limiting what it can contribute to the test,
-which we report directly rather than work around (Figure~\ref{fig:concept},
-Appendix~\ref{app:extrafigs}, illustrates the contrast this choice
+which we report directly rather than work around (Figure~\ref{fig:concept}
+illustrates the contrast this choice
 exploits).
 
 We also test, and report honestly failing, the most natural fix: since
@@ -182,12 +179,7 @@ than compressible higher-dimensional irreps, perhaps a signal built directly
 from low-degree Walsh alignment --- rather than from rank --- would recover
 a usable precursor. Across seven signal/task combinations and two
 independent statistical tests with Bonferroni correction, it does not
-(\S\ref{sec:h2}). In its place, we report an unrelated, independently
-motivated finding that does hold up: a weight-decay-driven timing bound,
-built entirely from the optimizer's own decay dynamics, functions as a
-genuine lower bound on generalization time in $25$ of our $30$
-modular-arithmetic and parity runs, with the specific pattern of exceptions
-not an artifact of the bound's single free parameter (\S\ref{sec:clock}).
+(\S\ref{sec:h2}).
 
 \paragraph{Contributions.}
 \begin{itemize}
@@ -206,10 +198,6 @@ not an artifact of the bound's single free parameter (\S\ref{sec:clock}).
   precursor gap does not restore a usable signal, tested with two
   independent statistical procedures and full multiple-comparison
   correction (\S\ref{sec:h2}).
-  \item An independent, unfitted weight-decay clock holding as a genuine
-  lower bound on generalization timing where the representation-theoretic
-  account is silent, with a robustness check confirming this is not an
-  artifact of the bound's one free parameter (\S\ref{sec:clock}).
   \item A controlled experiment isolating whether group size or weight
   decay explains $S_4$'s failure to converge, with the result reported as
   genuinely mixed rather than resolved in either direction
@@ -242,8 +230,7 @@ description. \citet{stander2024grokking} reverse-engineer $S_5$/$S_6$
 networks and find circuits organized around \emph{coset} structure rather
 than irreducible representations directly --- a different lens we do not
 reconcile with ours here (\S\ref{sec:discussion}). \citet{varma2023explaining}
-offer a circuit-efficiency account of grokking timing closer in spirit to
-our clock (\S\ref{sec:clock}) than to our structural bound.
+offer a circuit-efficiency account of grokking timing.
 
 \paragraph{Sparse parity and SQ hardness.} \citet{barak2022hidden} show SGD
 learns $k$-sparse parity near the statistical-query information limit
@@ -261,11 +248,6 @@ independently extends a representation-theoretic precursor account to
 $S_5$, generalizing \citet{chughtai2023toy}'s Cayley-table setting; it
 remains confined to group composition and does not test parity or a
 dimension-heterogeneous group pairing as we do.
-\citet{truong2026weightnorm,truong2026normseparation} independently
-establish a \emph{calibrated} weight-decay timing law; our clock
-(\S\ref{sec:clock}) uses the same decay mechanism but deliberately tests
-only its unfitted, conservative lower-bound form, since we lack their
-calibration data.
 
 \paragraph{Effective rank, equivariance, architecture.} We use the
 participation-ratio form of \citet{roy2007effective}'s effective rank
@@ -277,8 +259,7 @@ small transformers that discover equivariant structure through training
 rather than architectures built to enforce it --- sits closer to
 mechanistic interpretability. Our architecture follows
 \citet{vaswani2017attention}; all models train under the decoupled weight
-decay of \citet{loshchilov2019decoupled}, the same mechanism
-\S\ref{sec:clock}'s clock is derived from.
+decay of \citet{loshchilov2019decoupled}.
 
 \FloatBarrier
 \section{Problem Setup}
@@ -304,9 +285,21 @@ A run is judged to have \emph{grokked} at step $T^*_{\mathrm{grok}}$, the
 first evaluation at which validation accuracy exceeds $0.95$ and remains
 above that threshold for five consecutive evaluations. The asymmetry this
 paper explains --- shown directly as trained trajectories from our own
-runs in Figure~\ref{fig:asymmetry}
-(Appendix~\ref{app:extrafigs}) --- is exactly Lemma~\ref{lem:bound} and
+runs in Figure~\ref{fig:asymmetry} --- is exactly Lemma~\ref{lem:bound} and
 Conjecture~\ref{conj:parity}'s target.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/fig2_rank_collapse_contrast.pdf}
+\caption{The documented asymmetry, mean $\pm 95\%$ CI, dotted line marking
+mean grokking onset. \textbf{Left:} modular arithmetic's participation
+ratio collapses as the circuit consolidates. \textbf{Right:} sparse
+parity shows no comparable collapse around its own grokking transition.
+This asymmetry, observed directly in our own runs, is
+the phenomenon Lemma~\ref{lem:bound} and Conjecture~\ref{conj:parity}
+explain.}
+\label{fig:asymmetry}
+\end{figure}
 
 \textbf{Effective rank.} At each evaluation step we record the residual-
 stream activations for all inputs and compute their participation ratio,
@@ -400,30 +393,26 @@ mechanism consistent with the failure we document empirically
 natural fix (\S\ref{sec:h1_results}--\S\ref{sec:h2}).
 \end{conjecture}
 
-\FloatBarrier
-\subsection{The weight-decay clock}
-\label{sec:clock_theory}
+Figure~\ref{fig:concept} makes this structural contrast concrete: modular
+arithmetic's non-trivial irreps are two-dimensional rotations, confining a
+converged circuit to a low-dimensional subspace by construction, while
+sparse parity's Walsh characters are one-dimensional and combinatorially
+numerous, with no analogous small subspace for an SQ-hard solution to
+collapse into.
 
-Independently of the representation-theoretic account above, we test a
-second, unrelated timing mechanism motivated by
-\citet{truong2026weightnorm,truong2026normseparation}: under AdamW's
-decoupled weight decay \citep{loshchilov2019decoupled}, a parameter norm
-shrinks multiplicatively by a factor $(1-\eta\lambda)$ per step in the
-absence of a compensating gradient signal, giving $\approx
-e^{-\eta\lambda t}$ decay after $t$ steps. The number of steps for such a
-quantity to decay to a fraction $\rho$ of its initial value is
-\begin{equation}
-\tau_c = \frac{-\ln \rho}{\eta \lambda}.
-\label{eq:clock}
-\end{equation}
-We deliberately test only this bare, unfitted form, with a fixed, unfit
-$\rho=0.8$, rather than the calibrated multiplier $\bar{c}$ that
-\citet{truong2026weightnorm} establish on top of it: we do not have that
-calibration procedure or its fitting data, and we are not willing to
-reconstruct it. What we test in \S\ref{sec:clock} is the weaker, honest
-claim that $\tau_c$ is a valid \emph{lower bound} on generalization time,
-$T^*_{\mathrm{grok}} > \tau_c$, not that $T^*_{\mathrm{grok}} \approx
-\bar{c}\,\tau_c$ for any particular fitted $\bar{c}$.
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/fig1_isotypic_bottleneck.pdf}
+\caption{The structural asymmetry Lemma~\ref{lem:bound} formalizes.
+\textbf{Left:} modular arithmetic's non-trivial irreps are all
+two-dimensional rotations; a converged circuit using a handful of
+frequencies is confined to a low-dimensional subspace by construction.
+\textbf{Right:} sparse parity's irreps (Walsh characters) are all
+one-dimensional and combinatorially numerous; there is no analogous small
+subspace for an SQ-hard solution to collapse into
+(Conjecture~\ref{conj:parity}).}
+\label{fig:concept}
+\end{figure}
 
 \section{Experimental Setup}
 \label{sec:expsetup}
@@ -517,7 +506,7 @@ we believe this result should be read and cited. An alternative,
 concentration-based version of the $\mathbb{Z}_p$-only test (Fourier
 concentration rather than the dimension-weighted bound) gives the same
 picture even more cleanly ($r=-0.97$, $p=1.7\times10^{-9}$, $n=15$;
-Figure~\ref{fig:h1zp}, Appendix~\ref{app:extrafigs}).
+Figure~\ref{fig:h1zp}).
 
 \begin{table}[t]
 \caption{H1, reported with the full breakdown a bare pooled correlation
@@ -641,53 +630,8 @@ no rank collapse under a genuine delayed-generalization regime say nothing
 about a task that never enters that regime in the first place. $k=3$ and
 $k=4$ look nothing like this (plateau rank $29.4$ and $15.2$,
 $t_{\mathrm{grok}}$ ranging from $3{,}600$ to $15{,}400$ steps across
-seeds), and it is exactly these two $k$ values whose clock ratios hold in
-\S\ref{sec:clock} while every one of the five $k=2$ runs' does not --- two
-independently derived diagnostics, rank collapse and the weight-decay
-clock, converging on the same five runs as the exception, which we read
-as corroboration rather than coincidence.
+seeds).
 
-
-\subsection{The weight-decay clock: an independent, honest lower bound}
-\label{sec:clock}
-
-The clock of Eq.~\eqref{eq:clock}, evaluated at the unfitted $\rho=0.8$,
-gives $\tau_c=111.6$ steps for modular arithmetic and $\tau_c=318.8$ steps
-for parity, using each task's own $(\eta,\lambda)$. Across all $30$ runs
-where a grokking step is defined, $T^*_{\mathrm{grok}} > \tau_c$ in $25$
---- every one of the $15$ modular-arithmetic runs (ratio range
-$10.8\times$--$44.8\times$) and $10$ of the $15$ parity runs. The five
-exceptions are exactly the five $k=2$ runs discussed in
-\S\ref{sec:ablation} (ratio $0.63\times$, uniformly, since $T^*_{\mathrm{grok}}=200$
-for all five); $k=3$ and $k=4$ hold with the same margin as modular
-arithmetic (ratio range $11.3\times$--$48.3\times$). We regard this bound
-as loose --- a factor of ten to fifty above the tightest possible bound is
-not a tight prediction --- and that looseness is expected given we
-deliberately did not fit $\bar{c}$ (\S\ref{sec:clock_theory}); what we take
-as informative is that the bound holds cleanly on every run with a genuine
-delayed-generalization transition and fails on every run without one.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.95\textwidth]{figures/fig6_weight_decay_clock.pdf}
-\caption{The weight-decay clock as a lower bound. \textbf{Left:}
-$T^*_{\mathrm{grok}}$ vs.\ $\tau_c$ by family, with the $y=x$ line marking
-where the bound would be tight; points sit above it, not on it, consistent
-with an intentionally unfitted, conservative bound. \textbf{Right:} the
-$T^*/\tau_c$ ratio distribution by family.}
-\label{fig:clock}
-\end{figure}
-
-\paragraph{Robustness to the bound's one free parameter.} Since $\rho=0.8$
-was a stated default, not fitted, we recompute the bound across
-$\rho\in\{0.1,0.3,0.5,0.8,0.9\}$ --- a full order of magnitude in $\tau_c$
-(full table, Appendix~\ref{app:extratables}). Modular arithmetic holds at
-$15/15$ throughout; parity holds at exactly $10/15$ for every value except
-the most lenient ($\rho=0.9$), where the bound becomes too loose to be
-informative. This is the behavior of a genuine effect, not an artifact of
-one convenient parameter: the $k=2$ exception survives a full order of
-magnitude of strictness and disappears only when the bound stops testing
-anything at all.
 
 \subsection{Disentangling $S_4$'s non-convergence}
 \label{sec:disentangle}
@@ -713,7 +657,7 @@ unresolved rather than resolve it in either direction.
 A structural claim should not depend on the optimizer knob that sets
 training \emph{speed}. Sweeping modular arithmetic's smallest prime across
 weight decay $\{0.5,1.0,3.0,4.0,6.0\}$ (three seeds each; full results in
-Figure~\ref{fig:h1zp}, Appendix~\ref{app:extrafigs}), plateau rank among
+Figure~\ref{fig:h1zp}), plateau rank among
 the nine converging runs stays in a comparable range ($14.0$--$23.5$)
 while $T^*_{\mathrm{grok}}$ varies far more and non-monotonically, from
 $2{,}800$ to $15{,}600$ steps, with complete non-convergence at
@@ -722,6 +666,29 @@ $5\times$ and fails outright at the high end is what a representation-
 theoretic account predicts and a pure-timing account would not; with only
 six of fifteen sweep runs failing to converge, we treat this as
 suggestive, not independent statistical weight, for \S\ref{sec:h1_results}.
+
+Figure~\ref{fig:h1zp} closes the loop on both checks together: an
+alternative, concentration-based structural statistic that agrees with
+the dimension-weighted bound on $\mathbb{Z}_p$ alone, and the
+weight-decay robustness sweep just above, showing structure staying
+fixed while timing shifts.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/fig4_h1_and_dissociation.pdf}
+\caption{H1 on $\mathbb{Z}_p$ alone, and the structure/timing dissociation.
+\textbf{Left:} plateau rank vs.\ Fourier concentration (an alternative,
+concentration-based structural statistic rather than the dimension-weighted
+bound used elsewhere in this section), $r=-0.97$
+($p=1.7\times10^{-9}$, $n=15$) --- more concentrated spectral support
+predicts a smaller collapsed rank, the same relationship
+Table~\ref{tab:h1honesty} tests on the dimension-weighted axis. \textbf{Right:}
+the weight-decay robustness check of \S\ref{sec:robustness} --- plateau
+rank stays flat across weight decay while $T^*_{\mathrm{grok}}$ shifts, the
+dissociation a purely representation-theoretic account predicts and a
+pure-timing account does not.}
+\label{fig:h1zp}
+\end{figure}
 
 \FloatBarrier
 \section{Discussion and Limitations}
@@ -736,13 +703,6 @@ with identical results. We have no positive account of what
 mechanism prior work already established
 \citep{truong2026weightnorm,truong2026normseparation}; closing that gap is
 the natural next question, not one this paper answers.
-
-\textbf{The clock is deliberately the unfitted, weaker claim.} The bound we
-find is loose (ratios $10\times$--$50\times$, not near $1\times$). A
-tighter, calibrated version almost certainly exists --- that is the
-content of \citet{truong2026weightnorm} --- but we lack its calibration
-procedure, and testing a weaker claim honestly seemed preferable to
-reconstructing a stronger one we could not verify.
 
 \textbf{Multiplicity-one, and $S_4$ vs.\ $D_4$, are open questions we
 narrowed but did not close.} Remark~\ref{rem:multiplicity} and
@@ -774,10 +734,7 @@ bound (Lemma~\ref{lem:bound}) explains the asymmetry's structural half
 cleanly, confirmed across three independent replications and extended,
 honestly, to a non-abelian group. It does not explain the timing half:
 the natural fix we proposed for parity does not work, tested two
-independent ways. In its place, an unrelated, independently derived
-weight-decay clock provides a genuine --- if loose --- account of
-timing, with a robustness property (\S\ref{sec:clock}) we verified
-rather than assumed. We think a bound honestly reported as explaining
+independent ways. We think a bound honestly reported as explaining
 part of what it was built to explain, not all of it, is more useful to
 the next person who tests it than a narrower story would have been.
 
@@ -792,11 +749,10 @@ the next person who tests it than a narrower story would have been.
 \addcontentsline{toc}{section}{Appendix Overview}
 
 The appendix is organized to mirror the paper's own argument rather than
-simply collecting leftovers. Appendix~\ref{app:extrafigs} and
-Appendix~\ref{app:extratables} hold figures and tables that are discussed
-in the main body but whose full form did not fit within the page limit ---
-every number in them is cited exactly as shown here, nothing is
-summarized or approximated on the way in. Appendices~\ref{app:multiplicity}
+simply collecting leftovers. Appendix~\ref{app:extratables} holds tables
+that are discussed in the main body but whose full form did not fit
+within the page limit --- every number in it is cited exactly as shown
+here, nothing is summarized or approximated on the way in. Appendices~\ref{app:multiplicity}
 and~\ref{app:chartables} give the mathematical machinery behind
 \S\ref{sec:theory} in full: the numerical checks that justify treating
 multiplicity-one as forced for abelian groups and as an assumption for
@@ -812,91 +768,10 @@ closes with a single, complete reference table for every hyperparameter,
 sweep, and seed used anywhere in this paper.
 
 \FloatBarrier
-\section{Additional Figures}
-\label{app:extrafigs}
-
-The three figures below are referenced from the main body but placed here
-to keep the main body within the page limit; none of them are new
-content, and each is discussed in full at the point the main text cites
-it. We include them here, rather than describing them only in words,
-because a rank-collapse claim is easiest to check by eye, and because the
-qualitative pattern in each figure --- a circle of frequencies collapsing
-to a handful of points, a rank trajectory falling and staying flat, a
-robustness sweep that moves timing without moving structure --- carries
-information a summary statistic alone does not.
-
-Figure~\ref{fig:concept} illustrates the structural contrast
-\S\ref{sec:intro} motivates the paper with: why a network solving modular
-arithmetic has a small subspace available to collapse into, and why a
-network solving sparse parity does not. Figure~\ref{fig:asymmetry} makes
-that same contrast empirical, plotting the trained rank trajectories
-themselves rather than describing them. Figure~\ref{fig:h1zp} then closes
-the loop on H1 (\S\ref{sec:h1_results}): its left panel is an independent,
-concentration-based version of the $\mathbb{Z}_p$-only correlation, and
-its right panel is the weight-decay robustness check of
-\S\ref{sec:robustness}, showing structure staying fixed while timing
-moves --- the dissociation a purely representation-theoretic account
-predicts and a pure-timing account does not.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.85\textwidth]{figures/fig1_isotypic_bottleneck.pdf}
-\caption{The structural asymmetry Lemma~\ref{lem:bound} formalizes.
-\textbf{Left:} modular arithmetic's non-trivial irreps are all
-two-dimensional rotations; a converged circuit using a handful of
-frequencies is confined to a low-dimensional subspace by construction.
-\textbf{Right:} sparse parity's irreps (Walsh characters) are all
-one-dimensional and combinatorially numerous; there is no analogous small
-subspace for an SQ-hard solution to collapse into
-(Conjecture~\ref{conj:parity}).}
-\label{fig:concept}
-\end{figure}
-
-This structural picture is a prediction until it is checked against
-trained networks. Figure~\ref{fig:asymmetry} shows exactly that check,
-using the same participation-ratio statistic used throughout
-\S\ref{sec:results}, aggregated across every seed in each family.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.95\textwidth]{figures/fig2_rank_collapse_contrast.pdf}
-\caption{The documented asymmetry, mean $\pm 95\%$ CI, dotted line marking
-mean grokking onset. \textbf{Left:} modular arithmetic's participation
-ratio collapses as the circuit consolidates. \textbf{Right:} sparse
-parity shows no comparable collapse around its own grokking transition.
-This asymmetry, observed directly in our own runs, is
-the phenomenon Lemma~\ref{lem:bound} and Conjecture~\ref{conj:parity}
-explain.}
-\label{fig:asymmetry}
-\end{figure}
-
-Finally, Figure~\ref{fig:h1zp} reports two checks on H1 that are secondary
-to the pooled cross-family test of \S\ref{sec:h1_results} but strengthen
-it: an alternative structural statistic that agrees with the
-dimension-weighted bound, and a robustness sweep that would break the
-representation-theoretic story if it failed.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.95\textwidth]{figures/fig4_h1_and_dissociation.pdf}
-\caption{H1 on $\mathbb{Z}_p$ alone, and the structure/timing dissociation.
-\textbf{Left:} plateau rank vs.\ Fourier concentration (an alternative,
-concentration-based structural statistic rather than the dimension-weighted
-bound used elsewhere in this section), $r=-0.97$
-($p=1.7\times10^{-9}$, $n=15$) --- more concentrated spectral support
-predicts a smaller collapsed rank, the same relationship
-Table~\ref{tab:h1honesty} tests on the dimension-weighted axis. \textbf{Right:}
-the weight-decay robustness check of \S\ref{sec:robustness} --- plateau
-rank stays flat across weight decay while $T^*_{\mathrm{grok}}$ shifts, the
-dissociation a purely representation-theoretic account predicts and a
-pure-timing account does not.}
-\label{fig:h1zp}
-\end{figure}
-
 \section{Additional Results Tables}
 \label{app:extratables}
 
-Three tables are collected here, each the full version of a result
+Two tables are collected here, each the full version of a result
 summarized in prose in the main body. In every case the summary in
 \S\ref{sec:results} states the specific numbers that matter for the
 paper's argument; what follows here is the complete breakdown those
@@ -921,32 +796,6 @@ $k$ & Mean plateau rank & Mean Walsh-score (deg.\ $\le\!1$) lead & $n$ \\
 $2$ & $2.85$ & $-640$ & $5$ \\
 $3$ & $29.37$ & $1960$ & $5$ \\
 $4$ & $15.20$ & $-1440$ & $5$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Table~\ref{tab:rho} is the source of \S\ref{sec:clock}'s robustness claim
-for the weight-decay clock: the fraction of runs clearing the bound at
-each of five tested values of the clock's one free parameter $\rho$,
-spanning a full order of magnitude. The pattern that matters is that
-parity's shortfall from a perfect $15/15$ is the \emph{same} $10/15$ at
-every value except the most lenient one tested, where the bound becomes
-too loose to be informative at all.
-
-\begin{table}[t]
-\caption{Fraction of runs where $T^*_{\mathrm{grok}} > \tau_c$, by family
-and $\rho$. The $k=2$ exception (parity's shortfall from $15/15$) persists
-across a full order of magnitude in $\rho$ and vanishes only at the most
-lenient value tested.}
-\label{tab:rho}
-\centering
-\small
-\begin{tabular}{@{}lccccc@{}}
-\toprule
-Family & $\rho=0.1$ & $\rho=0.3$ & $\rho=0.5$ & $\rho=0.8$ & $\rho=0.9$ \\
-\midrule
-Modular & $15/15$ & $15/15$ & $15/15$ & $15/15$ & $15/15$ \\
-Parity & $10/15$ & $10/15$ & $10/15$ & $10/15$ & $15/15$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1031,6 +880,49 @@ forced consequence: nothing in the group's structure alone rules out a
 higher-rank solution, and the bound we test empirically in
 \S\ref{sec:h1_results} depends on the network's converged solution
 happening not to use one.
+
+\textbf{$(\mathbb{Z}/2)^n$ (abelian, one-dimensional irreps).} Remark~\ref{rem:multiplicity}'s
+``forced, not assumed'' claim is stated for the general abelian case,
+$d_i\in\{1,2\}$, but the check above only exercises the $d_i=2$ case. The
+$d_i=1$ case is not a variant of the same argument --- it is strictly
+simpler, and it is the case that actually governs sparse parity: every
+irreducible representation of the hypercube sign group $(\mathbb{Z}/2)^n$
+is a one-dimensional Walsh character.
+
+For a genuinely one-dimensional real irrep $\chi: G \to \{-1,+1\}$, the
+group acts by scalar multiplication on a 1-dimensional space, so a
+reference vector is already the full embedding: $n_i$ independent copies,
+with independent weight vectors $v_1,\ldots,v_{n_i}\in\mathbb{R}^D$, sum to
+\[
+\sum_{c=1}^{n_i} \chi(g)\,v_c \;=\; \chi(g)\sum_{c=1}^{n_i} v_c \;=\; \chi(g)\,v,
+\qquad v := \textstyle\sum_c v_c,
+\]
+for every $g\in G$ --- a single effective embedding, regardless of $n_i$.
+As a function of $g$, this is the rank-1 outer product $\chi \otimes v$; no
+choice of the $v_c$ can escape it, since the argument used only linearity
+and $\chi(g)$ being scalar-valued.
+
+We verify this numerically on $(\mathbb{Z}/2)^3$ ($|G|=8$) using the Walsh
+character $\chi_{\{1\}}(x)=x_1$, embedded into $\mathbb{R}^8$ (matching
+$\mathbb{Z}_7$'s embedding dimension above), i.i.d.\ standard normal
+reference vectors, seed $0$, same tolerance ($10^{-8}$) as every other
+rank check in this appendix: one copy gives rank $1$; a second,
+independently drawn copy of the same character gives rank $1$ again,
+exactly matching the closed-form prediction $\chi\otimes(v_0+v_0')$.
+Multiplicity genuinely adds nothing here --- more directly and more
+immediately than in the $\mathbb{Z}_7$ case, since no ``same pair of basis
+functions'' argument is needed when the irrep is already one-dimensional.
+
+This closes the gap Remark~\ref{rem:multiplicity} leaves open: $n_i=1$ is
+forced for \emph{every} abelian irrep dimension the paper uses, including
+the one that actually matters for Conjecture~\ref{conj:parity}. It does
+not, on its own, say anything about \emph{how many distinct} Walsh
+characters an SQ-hard solution needs to occupy --- that is the
+Conjecture's separate, unproven claim, and multiplicity-of-a-single-character
+was never the source of that uncertainty.
+
+
+
 
 All ranks reported above are computed with
 \texttt{numpy.linalg.matrix\_rank} at tolerance $10^{-8}$ on
@@ -1331,7 +1223,6 @@ Eval.\ interval & every $200$ steps & \\
 \midrule
 Grokking threshold & val.\ acc.\ $\ge 0.95$ & \\
 Sustain requirement & $5$ consec.\ evals.\ & plus $15$ additional evals.\ before early stop \\
-Clock free parameter $\rho$ & $0.8$ & unfitted default; $\star$ swept \S\ref{sec:clock}: $\{0.1,0.3,0.5,0.8,0.9\}$ \\
 Isotypic energy threshold & $90\%$ & fewest irreps whose energy sums to this \\
 Fourier top-$k$ (modular) & $4$ & non-DC frequencies \\
 Walsh degree bound & $\le\!2$ & degree-$1$ is the primary signal (\S\ref{sec:h2}) \\
