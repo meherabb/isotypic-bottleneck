@@ -1,0 +1,10 @@
+{
+  "global_seed": 0,
+  "per_run_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ]
+}
