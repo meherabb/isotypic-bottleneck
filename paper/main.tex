@@ -1,0 +1,1360 @@
+\documentclass{article}
+
+% NeurIPS convention uses numbered in-text citations ([1], [2], ...),
+% not author-year. Confirmed directly from neurips_2026.sty's own
+% source: it unconditionally does `\RequirePackage{natbib}` with NO
+% options as part of processing \usepackage{neurips_2026} below,
+% which locks natbib to its own default (author-year) the moment
+% that line runs. A later \usepackage[numbers]{natbib} is too late --
+% natbib is already loaded, so the option is silently dropped. The
+% style file's own comments document \PassOptionsToPackage as the
+% correct mechanism for this exact situation: it queues the option
+% so it applies automatically whenever natbib actually loads,
+% regardless of who triggers that load. Must still appear before
+% \usepackage{neurips_2026} below, since that's where the load happens.
+\PassOptionsToPackage{numbers}{natbib}
+
+% NOTE TO AUTHOR: this file assumes the official neurips_2026.sty package,
+% which is NOT reproduced here (it is proprietary conference formatting
+% infrastructure, not paper content, and should be downloaded fresh from
+% https://neurips.cc/Conferences/2026/CallForPapers to guarantee it matches
+% the current official version). Place neurips_2026.sty in the same
+% directory as this file before compiling. Swap the option below per your
+% submission stage: no option / [preprint] for arXiv, [final] for camera-ready.
+\usepackage{neurips_2026}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{multirow}
+\usepackage{placeins}
+\usepackage{array}
+
+\newtheorem{lemma}{Lemma}
+\newtheorem{conjecture}{Conjecture}
+\newtheorem{corollary}{Corollary}
+\newtheorem{definition}{Definition}
+\newtheorem{remark}{Remark}
+
+\title{The Isotypic Bottleneck: A Representation-Theoretic Bound on Rank Collapse During Grokking, and Its Limits as a Precursor Signal}
+
+\author{%
+  Anonymous Author(s) \\
+  Anonymous Institution \\
+  Anonymous City, Anonymous Country \\
+  \texttt{anonymous@email}
+}
+
+% Confirmed from neurips_2026.sty's own source: it never loads hyperref
+% itself, so hyperref here comes only from the explicit \usepackage{hyperref}
+% line above -- placement relative to neurips_2026 doesn't matter for this
+% one. colorlinks=true removes the border boxes hyperref draws
+% by default around \cite/\ref/\S\ref/URLs; black keeps the printed page
+% looking like plain text while the links stay live/clickable in the PDF.
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=black,
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Effective-rank collapse has been proposed as an early, computationally cheap
+precursor to grokking, but we find a puzzling asymmetry: the
+signal reliably precedes generalization on modular arithmetic, yet fails on
+sparse parity. We give a representation-theoretic account of this asymmetry.
+We prove that if a group-equivariant representation's image lies in the
+isotypic components of a set of irreducible representations, its rank is
+bounded by the summed dimension of those components; for cyclic groups this
+bound is trivially proportional to the number of active Fourier frequencies,
+but for non-abelian groups the bound depends on \emph{which} irreducible
+representations are active, not merely how many. Across three independent
+GPU-verified
+experimental runs on modular addition ($p \in \{61,97,113\}$, $n=15$), the
+plateau rank tracks this bound closely ($r=0.87$, $p<10^{-4}$); extending the
+test to a non-abelian group of matched training dynamics (the dihedral group
+$D_4$) and pooling with modular arithmetic, while correctly excluding the one
+family that contributes no within-family evidence, gives $r=0.97$
+($p<10^{-12}$, $n=20$). We then test the natural proposal that a
+representation-theoretic alignment score, rather than raw rank, restores a
+usable precursor on sparse parity, and find that it does not: across seven
+signal/task combinations and two independent statistical tests, no
+Bonferroni-corrected result supports it. In its place we report an unrelated,
+independently-motivated finding: a weight-decay-driven ``clock'' derived from
+the optimizer's own decay dynamics acts as a valid, if loose, lower bound on
+generalization time in $25$ of $30$ runs, and the five exceptions are exactly
+the five runs that independently fail a delayed-generalization diagnostic.
+Finally, we report a controlled experiment
+disentangling why the symmetric group $S_4$ never converges within budget:
+neither $S_4$ nor $D_4$ reaches our grokking criterion at any of five tested
+weight-decay values, ruling out weight decay alone as the explanation, though
+$D_4$ shows substantial partial generalization ($11$--$46\%$ validation
+accuracy across ten runs, against a $12.5\%$ chance rate) where $S_4$ shows
+essentially none ($3$--$9\%$ across fifteen runs, against a $4.2\%$ chance
+rate). We report all of this, including the negative results, because we
+believe an honest account of what a representation-theoretic bound does and
+does not predict is more useful than a narrower story that only reports the
+parts that worked.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+Grokking --- the phenomenon in which a network fits its training set almost
+immediately, then generalizes only much later, after a delay that can span
+orders of magnitude more optimization steps --- was first documented on small
+algorithmic tasks by \citet{power2022grokking} and has since become a
+tractable testbed for understanding how generalizing circuits form inside
+neural networks
+\citep{liu2023omnigrok,thilak2022slingshot,nanda2023progress,zhong2023clock}.
+On modular addition specifically, \citet{nanda2023progress} showed that the
+generalizing circuit is legible: the network learns a small set of Fourier
+frequencies and composes them via trigonometric identities, and the
+\emph{effective rank} of its hidden representation collapses sharply as this
+circuit consolidates, well before validation accuracy visibly moves. This
+collapse has been proposed as a cheap, architecture-agnostic early-warning
+signal for grokking, since effective rank is far cheaper to compute during
+training than held-out validation accuracy.
+
+That proposal runs into a genuine asymmetry. On $k$-sparse parity ---
+predicting the sign of a product of $k$ input bits out of $n$, a task whose
+sample complexity is governed by the statistical-query lower bounds of
+\citet{barak2022hidden} rather than by circuit legibility --- rank collapse
+does not reliably precede generalization at all: participation ratio stays
+flat across training, with no collapse before, at, or after the grokking
+transition (Figure~\ref{fig:asymmetry}). This is a genuine anomaly, not a minor
+caveat: the cheapest, most architecture-agnostic precursor to grokking known
+works on one canonical algorithmic family and silently fails on another, with
+no account of \emph{why}.
+
+We give a representation-theoretic account of this asymmetry, and we test it
+honestly, including the parts where the natural next hypothesis turned out to
+be wrong. The starting observation is simple linear algebra with a
+group-theoretic label attached: if a network's internal representation of a
+group's elements is equivariant, its image decomposes into isotypic
+components indexed by the group's irreducible representations (irreps), and
+its rank is bounded by the summed dimension of whichever isotypic components
+are actually occupied (\S\ref{sec:theory}, Lemma~\ref{lem:bound}). For a
+cyclic group $\mathbb{Z}_p$, every non-trivial real irrep is
+two-dimensional, so this bound reduces to twice the number of active Fourier
+frequencies --- recovering Nanda et al.'s picture as a special case: with
+only one irrep dimension available, ``how compressed the circuit is'' and
+``how many frequencies it uses'' are the same question. For $k$-sparse
+parity, the relevant symmetry is the hypercube sign group $(\mathbb{Z}/2)^n$,
+whose irreps (Walsh characters) are all one-dimensional; the SQ-hardness
+results of \citet{barak2022hidden} suggest gradient descent does not find a
+correspondingly compressed solution, so no comparable collapse should be
+expected, and none is observed.
+
+If the bound is real, it should generalize beyond cyclic groups in a way
+that is a genuinely stronger test than ``more primes of the same
+family'': every non-trivial irrep of $\mathbb{Z}_p$ has the same
+dimension, so a bound stated in terms of \emph{how many} irreps are
+active is indistinguishable, for that family, from one stated in terms of
+\emph{total occupied dimension}. Non-abelian groups break this
+degeneracy, since irrep dimensions there are not all equal; we test $S_4$
+(dimensions $1,1,2,3,3$) and $D_4$ (dimensions $1,1,1,1,2$) for exactly
+this reason. This choice mattered in a way we did not anticipate: $S_4$
+never converges within budget at any tested weight decay
+(\S\ref{sec:disentangle}), limiting what it can contribute to the test,
+which we report directly rather than work around (Figure~\ref{fig:concept},
+Appendix~\ref{app:extrafigs}, illustrates the contrast this choice
+exploits).
+
+We also test, and report honestly failing, the most natural fix: since
+parity's relevant structure lives in one-dimensional Walsh characters rather
+than compressible higher-dimensional irreps, perhaps a signal built directly
+from low-degree Walsh alignment --- rather than from rank --- would recover
+a usable precursor. Across seven signal/task combinations and two
+independent statistical tests with Bonferroni correction, it does not
+(\S\ref{sec:h2}). In its place, we report an unrelated, independently
+motivated finding that does hold up: a weight-decay-driven timing bound,
+built entirely from the optimizer's own decay dynamics, functions as a
+genuine lower bound on generalization time in $25$ of our $30$
+modular-arithmetic and parity runs, with the specific pattern of exceptions
+not an artifact of the bound's single free parameter (\S\ref{sec:clock}).
+
+\paragraph{Contributions.}
+\begin{itemize}
+  \item A proven lemma bounding the rank of an isotypic-supported
+  representation by the summed dimension of its occupied components
+  (Lemma~\ref{lem:bound}), with a clearly labeled, unproven conjecture
+  (Conjecture~\ref{conj:parity}) for why sparse parity should not satisfy
+  the collapse it would otherwise predict.
+  \item Confirmation of the bound's structural prediction on modular
+  arithmetic, replicated across three independent full runs ($r=0.87$,
+  $p<10^{-4}$, $n=15$), and its extension to a non-abelian group with a
+  genuinely different irrep-dimension profile, with the pooled evidence
+  reported alongside an explicit accounting of which part is load-bearing
+  (\S\ref{sec:h1_results}).
+  \item An honestly negative result: the natural fix for the parity
+  precursor gap does not restore a usable signal, tested with two
+  independent statistical procedures and full multiple-comparison
+  correction (\S\ref{sec:h2}).
+  \item An independent, unfitted weight-decay clock holding as a genuine
+  lower bound on generalization timing where the representation-theoretic
+  account is silent, with a robustness check confirming this is not an
+  artifact of the bound's one free parameter (\S\ref{sec:clock}).
+  \item A controlled experiment isolating whether group size or weight
+  decay explains $S_4$'s failure to converge, with the result reported as
+  genuinely mixed rather than resolved in either direction
+  (\S\ref{sec:disentangle}).
+\end{itemize}
+
+\FloatBarrier
+\section{Related Work}
+\label{sec:related}
+
+\paragraph{Grokking.} Delayed generalization on small algorithmic tasks was
+introduced by \citet{power2022grokking}. \citet{liu2023omnigrok} locate the
+phenomenon in a training/test loss-landscape mismatch as a function of
+weight norm; \citet{thilak2022slingshot} identify a related late-training
+instability in adaptive optimizers. We ask a narrower question than either:
+not why grokking happens, but why one proposed early-warning signal for it
+works on some tasks and not others.
+
+\paragraph{Mechanistic accounts on group-structured tasks.}
+\citet{nanda2023progress} reverse-engineer the modular-addition circuit as a
+Fourier-frequency, trigonometric-identity computation; \citet{zhong2023clock}
+show the same task admits qualitatively different circuits (``Clock'' and
+``Pizza'') depending on hyperparameters. \citet{chughtai2023toy} generalize
+the representation-theoretic account to arbitrary finite groups, showing
+converged circuits organize around a small number of irreducible
+representations; Lemma~\ref{lem:bound} formalizes the rank consequence of
+that picture and, to our knowledge, is the first to test it as a
+quantitative, dimension-weighted bound rather than a qualitative
+description. \citet{stander2024grokking} reverse-engineer $S_5$/$S_6$
+networks and find circuits organized around \emph{coset} structure rather
+than irreducible representations directly --- a different lens we do not
+reconcile with ours here (\S\ref{sec:discussion}). \citet{varma2023explaining}
+offer a circuit-efficiency account of grokking timing closer in spirit to
+our clock (\S\ref{sec:clock}) than to our structural bound.
+
+\paragraph{Sparse parity and SQ hardness.} \citet{barak2022hidden} show SGD
+learns $k$-sparse parity near the statistical-query information limit
+\citep{kearns1998efficient}, with ``hidden progress'' invisible in the loss
+but present in weight statistics before generalization. Our
+Conjecture~\ref{conj:parity} restates this hardness as a reason rank
+collapse specifically should not occur; we do not prove it, and
+\S\ref{sec:h1_results}--\S\ref{sec:ablation} show the natural fix it
+motivates does not work either. \citet{odonnell2014analysis} is the
+standard reference for the Walsh-Fourier analysis our alignment score is
+built on.
+
+\paragraph{Concurrent 2026 work.} \citet{sivasankar2026circuit}
+independently extends a representation-theoretic precursor account to
+$S_5$, generalizing \citet{chughtai2023toy}'s Cayley-table setting; it
+remains confined to group composition and does not test parity or a
+dimension-heterogeneous group pairing as we do.
+\citet{truong2026weightnorm,truong2026normseparation} independently
+establish a \emph{calibrated} weight-decay timing law; our clock
+(\S\ref{sec:clock}) uses the same decay mechanism but deliberately tests
+only its unfitted, conservative lower-bound form, since we lack their
+calibration data.
+
+\paragraph{Effective rank, equivariance, architecture.} We use the
+participation-ratio form of \citet{roy2007effective}'s effective rank
+throughout for its noise stability (\S\ref{sec:setup}). The broader
+motivation for treating symmetry as a first-class object connects to
+equivariant and geometric deep learning
+\citep{cohen2016group,bronstein2021geometric}, though our setting ---
+small transformers that discover equivariant structure through training
+rather than architectures built to enforce it --- sits closer to
+mechanistic interpretability. Our architecture follows
+\citet{vaswani2017attention}; all models train under the decoupled weight
+decay of \citet{loshchilov2019decoupled}, the same mechanism
+\S\ref{sec:clock}'s clock is derived from.
+
+\FloatBarrier
+\section{Problem Setup}
+\label{sec:setup}
+
+We study two families of algorithmic classification tasks, following the
+grokking literature's standard small-transformer setup.
+
+\textbf{Modular addition.} Given $a, b \in \mathbb{Z}_p$, predict
+$(a+b) \bmod p$ from the input sequence $[a, b, \texttt{=}]$. We use
+$p \in \{61, 97, 113\}$.
+
+\textbf{Sparse parity.} Given $x \in \{-1,+1\}^n$ and a fixed hidden subset
+$S \subset [n]$ with $|S|=k$, predict $\mathrm{sign}\big(\prod_{i\in S} x_i\big)$.
+We use $n=40$ with $k \in \{2,3,4\}$.
+
+Both are trained with a one-layer transformer (self-attention followed by an
+MLP block, following \citealp{vaswani2017attention}) under AdamW
+\citep{loshchilov2019decoupled}; sparse parity additionally uses a plain MLP
+readout width of $200$. Full hyperparameters are in
+Table~\ref{tab:fullconfig} (Appendix~\ref{app:fullconfig}).
+A run is judged to have \emph{grokked} at step $T^*_{\mathrm{grok}}$, the
+first evaluation at which validation accuracy exceeds $0.95$ and remains
+above that threshold for five consecutive evaluations. The asymmetry this
+paper explains --- shown directly as trained trajectories from our own
+runs in Figure~\ref{fig:asymmetry}
+(Appendix~\ref{app:extrafigs}) --- is exactly Lemma~\ref{lem:bound} and
+Conjecture~\ref{conj:parity}'s target.
+
+\textbf{Effective rank.} At each evaluation step we record the residual-
+stream activations for all inputs and compute their participation ratio,
+$\mathrm{PR}(\Phi) = \big(\sum_i \sigma_i^2\big)^2 / \sum_i \sigma_i^4$,
+where $\sigma_i$ are the singular values of the activation matrix $\Phi$.
+We use this form of effective rank \citep{roy2007effective} rather than
+its entropy-based cousin or a hard numerical-rank threshold because a
+direct noise-injection check confirms it degrades far more gracefully
+under realistic noise (Appendix~\ref{app:metric_robustness}).
+
+
+\FloatBarrier
+\section{Theory}
+\label{sec:theory}
+
+We work with real irreducible representations throughout, following
+\citet{serre1977linear}. Let $G$ be a finite group with real irreducible
+representations $\rho_1,\ldots,\rho_r$ of dimensions $d_1,\ldots,d_r$.
+
+\begin{lemma}[Isotypic rank bound]
+\label{lem:bound}
+Let $\Phi \in \mathbb{R}^{|G|\times D}$ be an embedding matrix, rows indexed
+by $g \in G$, and suppose that $\Phi$'s column space, viewed as a
+representation of $G$ under left translation of the rows, is isomorphic to
+a subrepresentation of $\bigoplus_i \rho_i^{\oplus n_i}$ for multiplicities
+$n_i \ge 0$. Then $\mathrm{rank}(\Phi) \le \sum_i n_i d_i$.
+\end{lemma}
+\begin{proof}
+By hypothesis the column space of $\Phi$ is isomorphic, as an abstract
+vector space, to a subspace of $\bigoplus_i \rho_i^{\oplus n_i}$, which has
+real dimension $\sum_i n_i d_i$; the dimension of a subspace cannot exceed
+the dimension of its ambient space. The rank of a matrix is the dimension
+of its column space, so $\mathrm{rank}(\Phi) = \dim(\mathrm{col}(\Phi)) \le
+\sum_i n_i d_i$.
+\end{proof}
+
+Lemma~\ref{lem:bound} is a direct consequence of dimension counting once the
+isotypic hypothesis is granted; its content is in connecting rank to
+representation type at all, not in the proof itself. What the bound predicts
+in practice depends entirely on the multiplicities $n_i$, and here abelian
+and non-abelian groups behave differently in a way we verify numerically
+(Appendix~\ref{app:multiplicity}) before relying on it.
+
+\begin{remark}[Multiplicity: forced for abelian groups, an assumption for
+non-abelian ones]
+\label{rem:multiplicity}
+For abelian $G$, every irrep has $d_i\in\{1,2\}$ and a non-trivial one acts
+as scalar multiplication, so a second independent embedding of the same
+irrep provably adds no rank (verified for $\mathbb{Z}_7$,
+Appendix~\ref{app:multiplicity}): $n_i=1$ is \emph{forced}, not assumed,
+and Lemma~\ref{lem:bound} reduces to the familiar
+$\mathrm{rank}(\Phi)\le 2m$ for $m$ active Fourier frequencies, recovering
+\citet{nanda2023progress} as a special case. For non-abelian $G$ with an
+irrep of dimension $d_i>1$ (e.g.\ $S_4$'s two $3$-dimensional irreps,
+$D_4$'s one $2$-dimensional irrep), this argument breaks: $\rho_i(g)$ is a
+genuine matrix, not a scalar, and a second independent embedding
+\emph{can} add rank, up to the ceiling $d_i^2$ set by that irrep's
+multiplicity in the regular representation (verified for $S_4$'s standard
+representation, Appendix~\ref{app:multiplicity}: one embedding gives rank
+$3$ as predicted under $n_i=1$, a second pushes it to $6$, not $3$). The
+bound we test empirically for $S_4$ and $D_4$ in \S\ref{sec:h1_results}
+therefore rests on an explicit, stated assumption --- multiplicity-one,
+the minimal non-redundant case, motivated by but not implied by prior
+findings that grokked circuits converge to minimal bases
+\citep{nanda2023progress,chughtai2023toy} --- which we flag directly
+rather than let the lemma's generality quietly cover a claim it does not,
+on its own, make.
+\end{remark}
+
+\begin{conjecture}[Sparse parity does not satisfy the collapse]
+\label{conj:parity}
+For $k$-sparse parity on $n$ bits under the hypercube sign group
+$(\mathbb{Z}/2)^n$ --- whose only irreducible representations are the
+one-dimensional Walsh characters $\chi_S(x) = \prod_{i \in S} x_i$ --- we do
+not expect gradient descent under weight decay to converge to a
+representation whose column space is supported on a small subset of Walsh
+characters, because \citet{barak2022hidden} show that any statistical-query
+algorithm for $k$-sparse parity requires either exponentially many queries
+or a query tolerance exponentially small in $n$, and gradient descent with a
+bounded number of directions behaves as an SQ algorithm in the relevant
+regime. If the SQ-hardness result forces the optimizer to maintain at least
+$k$ approximately orthogonal directions throughout training rather than
+consolidating onto the target's own low-dimensional spectral support, no
+rank collapse of the kind predicted for finite groups by
+Lemma~\ref{lem:bound} under Remark~\ref{rem:multiplicity}'s abelian-case
+reasoning should occur, and the representation's rank should remain high
+throughout training. This is a hypothesis, not a theorem: we do not prove
+that SQ hardness forces this outcome, only that it is a plausible
+mechanism consistent with the failure we document empirically
+(Figure~\ref{fig:asymmetry}), and we test it further alongside its most
+natural fix (\S\ref{sec:h1_results}--\S\ref{sec:h2}).
+\end{conjecture}
+
+\FloatBarrier
+\subsection{The weight-decay clock}
+\label{sec:clock_theory}
+
+Independently of the representation-theoretic account above, we test a
+second, unrelated timing mechanism motivated by
+\citet{truong2026weightnorm,truong2026normseparation}: under AdamW's
+decoupled weight decay \citep{loshchilov2019decoupled}, a parameter norm
+shrinks multiplicatively by a factor $(1-\eta\lambda)$ per step in the
+absence of a compensating gradient signal, giving $\approx
+e^{-\eta\lambda t}$ decay after $t$ steps. The number of steps for such a
+quantity to decay to a fraction $\rho$ of its initial value is
+\begin{equation}
+\tau_c = \frac{-\ln \rho}{\eta \lambda}.
+\label{eq:clock}
+\end{equation}
+We deliberately test only this bare, unfitted form, with a fixed, unfit
+$\rho=0.8$, rather than the calibrated multiplier $\bar{c}$ that
+\citet{truong2026weightnorm} establish on top of it: we do not have that
+calibration procedure or its fitting data, and we are not willing to
+reconstruct it. What we test in \S\ref{sec:clock} is the weaker, honest
+claim that $\tau_c$ is a valid \emph{lower bound} on generalization time,
+$T^*_{\mathrm{grok}} > \tau_c$, not that $T^*_{\mathrm{grok}} \approx
+\bar{c}\,\tau_c$ for any particular fitted $\bar{c}$.
+
+\section{Experimental Setup}
+\label{sec:expsetup}
+
+Complete hyperparameters for every task and every sweep are in
+Appendix~\ref{app:fullconfig}, Table~\ref{tab:fullconfig}, which we
+cross-checked field-by-field against the exact \texttt{config.json} logged
+by the run; we summarize only what is needed to read the results below.
+All tasks use AdamW \citep{loshchilov2019decoupled}, $\eta=10^{-3}$,
+$\beta=(0.9,0.98)$, and $5$ seeds unless noted; weight decay is $2.0$
+(modular, $S_4$, $D_4$) or $0.7$ (parity), except where explicitly swept
+(\S\ref{sec:disentangle}, \S\ref{sec:robustness}).
+
+\textbf{Architecture.} Modular addition and both group-composition tasks use
+a one-layer, four-head decoder-only transformer
+\citep{vaswani2017attention} with $d_{\mathrm{model}}=128$ and an MLP width
+of $512$; sparse parity uses a plain two-layer MLP of width $200$, following
+\citet{barak2022hidden}'s setup for SQ-hardness demonstrations rather than a
+transformer, since the task has no sequential structure to attend over.
+Parameter counts, computed directly from the instantiated model classes and
+cross-checked against the values logged during training, are $214{,}656$
+(modular, largest prime), $8{,}602$ (parity), $205{,}184$ ($S_4$), and
+$201{,}088$ ($D_4$).
+
+\textbf{Metrics.} Effective rank is the participation ratio of
+\S\ref{sec:setup}. Fourier concentration (modular arithmetic) is the
+fraction of DFT power in the top-$4$ non-DC frequencies of the token
+embedding. Isotypic energy fractions ($S_4$, $D_4$) come from the
+character-theoretic projection $\Pi_\rho = \frac{d_\rho}{|G|}\sum_{g}
+\chi_\rho(g)\,L_g$ on the token embedding ($L_g$: the $|G|\times|G|$
+permutation matrix for left multiplication by $g$) --- the direct
+isotypic decomposition \S\ref{sec:theory} is about, not a proxy for it.
+The predicted bound is the summed dimension of the fewest, highest-energy
+irreps reaching $90\%$ of total energy; for $\mathbb{Z}_p$ we use the
+dimension-comparable analogue ($2$ dimensions per DFT frequency, same
+threshold), putting both families on the same predicted-dimension axis
+for the pooled test in \S\ref{sec:h1_results}.
+
+The Walsh alignment score (sparse parity) fits a degree-bounded Walsh
+basis to hidden activations and reports out-of-sample $R^2$ (half a
+dedicated probe batch to fit, the held-out half to score, decoupled from
+the task's own validation set). This is necessary, not a convenience: the
+in-sample version substantially overfits pure noise at our probe sizes
+(Appendix~\ref{app:walsh_bias}); every Walsh-score number reported in
+this paper uses only the out-of-sample construction.
+
+\textbf{Statistical protocol.} For each candidate precursor signal we
+compute a lead time $\Delta T = T^*_{\mathrm{grok}} - T^*_{\mathrm{signal}}$
+per run, where $T^*_{\mathrm{signal}}$ is the first step at which the signal
+crosses the midpoint of its own $10^{\mathrm{th}}$--$90^{\mathrm{th}}$
+percentile range, with the crossing direction determined by comparing
+early- and late-window means. We test $\Delta T > 0$ with a one-sided
+Wilcoxon signed-rank test, cross-checked with a sign test, report
+rank-biserial correlation as an effect size, and apply Bonferroni
+correction across all comparisons reported together ($m=7$, $\alpha =
+0.05/7 \approx 0.00714$).
+
+\textbf{Compute.} All experiments run on a single NVIDIA Tesla T4 (peak
+memory $780$\,MB); the $70$ training runs underlying this paper total
+$15{,}205$ wall-clock seconds ($4.2$ hours), well within free-tier GPU
+access.
+
+
+\section{Results}
+\label{sec:results}
+
+
+\subsection{H1: rank tracks the isotypic bound}
+\label{sec:h1_results}
+
+On modular arithmetic, plateau participation ratio correlates strongly with
+the predicted bound: $r=0.87$ ($p=3.0\times10^{-5}$, $n=15$), replicated
+identically across three independent full GPU runs. Extending the axis to
+$S_4$ and $D_4$ and pooling all three families gives $r=0.73$
+($p=4.0\times10^{-5}$, $n=25$) --- technically significant, but this number
+should never be quoted alone. $S_4$ contributes no within-family test:
+its predicted bound is the same constant ($8$) across all five seeds,
+since $S_4$ never converges (\S\ref{sec:disentangle}), so its embedding
+never moves past a generic, dimension-proportional energy distribution.
+A cluster with zero within-family variance can only pull a
+pooled fit as a fixed point; it cannot be tested. Excluding it and pooling
+only $\mathbb{Z}_p$ with $D_4$ --- the two families that actually converge
+and show genuine within-family spread --- gives $r=0.97$
+($p=4.3\times10^{-13}$, $n=20$), the strongest and most defensible
+cross-family number we report. $D_4$'s own within-family correlation is
+directionally positive but not significant on its own ($r=0.63$, $p=0.25$,
+$n=5$): five points is not enough statistical power to confirm a
+relationship on that family alone, only to be consistent with one.
+Table~\ref{tab:h1honesty} reports all four numbers together, which is how
+we believe this result should be read and cited. An alternative,
+concentration-based version of the $\mathbb{Z}_p$-only test (Fourier
+concentration rather than the dimension-weighted bound) gives the same
+picture even more cleanly ($r=-0.97$, $p=1.7\times10^{-9}$, $n=15$;
+Figure~\ref{fig:h1zp}, Appendix~\ref{app:extrafigs}).
+
+\begin{table}[t]
+\caption{H1, reported with the full breakdown a bare pooled correlation
+would hide. The pooled number is real but is substantially carried by
+between-cluster separation rather than a single relationship holding
+smoothly across the full range; the $\mathbb{Z}_p$-only and
+excl.-$S_4$ rows are the load-bearing evidence.}
+\label{tab:h1honesty}
+\centering
+\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Comparison & $r$ & $p$ & $n$ \\
+\midrule
+Pooled ($\mathbb{Z}_p$ + $S_4$ + $D_4$) & $0.73$ & $4.0\times10^{-5}$ & $25$ \\
+Pooled excluding $S_4$ ($\mathbb{Z}_p$ + $D_4$) & $\mathbf{0.97}$ & $4.3\times10^{-13}$ & $20$ \\
+$\mathbb{Z}_p$ only (load-bearing) & $0.87$ & $3.0\times10^{-5}$ & $15$ \\
+$D_4$ only & $0.63$ & $0.25$ & $5$ \\
+$S_4$ only & \multicolumn{3}{c}{undefined (zero within-family variance)} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/fig5_h1_nonabelian_generalization.pdf}
+\caption{H1 across group families. \textbf{Left:} predicted isotypic bound
+vs.\ measured plateau rank for $\mathbb{Z}_p$ (circles), $S_4$ (squares),
+and $D_4$ (triangles), with the pooled and $\mathbb{Z}_p$-only correlations
+annotated together on the plot rather than leaving the pooled number to
+stand alone. \textbf{Right:} the isotypic energy fraction $S_4$'s embedding
+places on each of its five irreps at the plateau, mean $\pm$ one standard
+deviation across seeds --- the concrete complement to the left panel's
+summary statistic, and the pattern (energy concentrated on the
+$3$-dimensional irreps regardless of seed) consistent with $S_4$ reflecting
+a generic, dimension-proportional prior rather than task-driven
+specialization, as expected from a network that never converges.}
+\label{fig:h1}
+\end{figure}
+
+\subsection{H2: the representation-theoretic fix does not restore a parity precursor}
+\label{sec:h2}
+
+Table~\ref{tab:h2} reports all seven signal/task comparisons. The
+headline test --- whether the out-of-sample Walsh alignment score
+(degree $\le 1$) leads grokking on sparse parity --- is not supported:
+mean lead $573$ steps, $95\%$ CI $[-1507, 3307]$ (crosses zero), Wilcoxon
+$p=0.744$, only $5$ of $15$ runs positive, not Bonferroni-significant. The
+degree-$2$ Walsh score is not supported either, and by a wider margin
+($p=0.819$, only $4/15$ positive, $r=-0.27$). The one comparison where the
+two statistical tests disagree is weight norm on parity: the Wilcoxon test
+nominally crosses the Bonferroni threshold ($p=0.005$), but the sign test
+does not ($p=0.151$, only $10/15$ positive) --- exactly the kind of
+disagreement a robust cross-check is meant to catch, and we read it as
+Wilcoxon's sensitivity to the magnitude of a few large positive differences
+rather than a consistent direction across most runs, not as a confirmed
+result. Rank does not lead on parity either ($r=-0.57$). Weight norm is the
+only signal with any positive lead evidence on parity at all ($p=0.005$,
+$10/15$ positive, $r=0.75$, with the disagreement above noted), and it is
+the mechanism already established by
+\citet{truong2026weightnorm,truong2026normseparation}, not this paper's
+proposed contribution.
+
+\begin{table}[t]
+\caption{Lead-time significance, all seven signal/task comparisons, one-sided
+Wilcoxon signed-rank test against zero with sign-test cross-check and
+Bonferroni correction ($\alpha=0.05/7$). Positive mean lead indicates the
+signal crosses its threshold before grokking. $\dagger$: nominally crosses
+the Bonferroni threshold but disagrees with its own sign-test cross-check
+($p=0.151$); read as Wilcoxon's sensitivity to a few large-magnitude
+differences rather than a consistent direction, not a confirmed result
+(\S\ref{sec:h2}).}
+\label{tab:h2}
+\centering
+\footnotesize
+\begin{tabular}{@{}llrrrrc@{}}
+\toprule
+Task & Signal & $n_+/n$ & Wilcoxon $p$ & Sign $p$ & $r$ & Sig.\ \\
+\midrule
+Modular & participation ratio & $11/15$ & $0.015$ & $0.059$ & $0.67$ & \ding{55} \\
+Modular & weight norm & $7/15$ & $0.098$ & $0.696$ & $0.44$ & \ding{55} \\
+Modular & Fourier concentration & $0/15$ & $0.9997$ & $1.000$ & $-1.00$ & \ding{55} \\
+Parity & participation ratio & $2/15$ & $0.971$ & $0.9995$ & $-0.57$ & \ding{55} \\
+Parity & weight norm & $10/15$ & $\mathbf{0.005}^\dagger$ & $0.151$ & $0.75$ & (\checkmark) \\
+Parity & Walsh score (deg.\ $\le\!2$) & $4/15$ & $0.819$ & $0.982$ & $-0.27$ & \ding{55} \\
+Parity & Walsh score (deg.\ $\le\!1$, primary) & $5/15$ & $0.744$ & $0.941$ & $-0.19$ & \ding{55} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/fig3_h2_evidence.pdf}
+\caption{H2 evidence on sparse parity. \textbf{Left:} the Walsh alignment
+score (degree $\le 1$) trajectory, mean $\pm 95\%$ CI, with the mean
+grokking onset marked. \textbf{Middle:} lead-time distributions by signal
+for both task families, with the primary comparison's effect size and
+Bonferroni-corrected significance annotated on the plot. \textbf{Right:}
+the same parity runs' rank lead and Walsh lead, paired and connected per
+run --- the aggregate in the middle panel can hide whether an individual
+run's two signals actually agree in direction; this panel shows that
+directly rather than assuming the aggregate speaks for every run.}
+\label{fig:h2}
+\end{figure}
+
+\subsection{The $k$-sweep breaks the ``parity never collapses'' picture in a specific way}
+\label{sec:ablation}
+
+Averaging H2 over $k\in\{2,3,4\}$ hides a pattern that matters for how
+Conjecture~\ref{conj:parity} should be read (full per-$k$ table,
+Appendix~\ref{app:extratables}). At $k=2$, plateau rank collapses to
+$2.85$ --- lower than several of the modular-arithmetic plateaus in
+Table~\ref{tab:h1honesty} --- and the Walsh-score lead is strongly negative
+($-640$ steps). We do not read this as parity failing Conjecture~\ref{conj:parity};
+we read it as $k=2$ failing the conjecture's own precondition. All five
+$k=2$ seeds reach our grokking threshold at $t=200$ steps --- the first
+evaluation point our logging captures at all, and identical across every
+seed --- which is the signature of a task solved immediately, not of a
+memorization-then-generalization delay. SQ-hardness arguments that predict
+no rank collapse under a genuine delayed-generalization regime say nothing
+about a task that never enters that regime in the first place. $k=3$ and
+$k=4$ look nothing like this (plateau rank $29.4$ and $15.2$,
+$t_{\mathrm{grok}}$ ranging from $3{,}600$ to $15{,}400$ steps across
+seeds), and it is exactly these two $k$ values whose clock ratios hold in
+\S\ref{sec:clock} while every one of the five $k=2$ runs' does not --- two
+independently derived diagnostics, rank collapse and the weight-decay
+clock, converging on the same five runs as the exception, which we read
+as corroboration rather than coincidence.
+
+
+\subsection{The weight-decay clock: an independent, honest lower bound}
+\label{sec:clock}
+
+The clock of Eq.~\eqref{eq:clock}, evaluated at the unfitted $\rho=0.8$,
+gives $\tau_c=111.6$ steps for modular arithmetic and $\tau_c=318.8$ steps
+for parity, using each task's own $(\eta,\lambda)$. Across all $30$ runs
+where a grokking step is defined, $T^*_{\mathrm{grok}} > \tau_c$ in $25$
+--- every one of the $15$ modular-arithmetic runs (ratio range
+$10.8\times$--$44.8\times$) and $10$ of the $15$ parity runs. The five
+exceptions are exactly the five $k=2$ runs discussed in
+\S\ref{sec:ablation} (ratio $0.63\times$, uniformly, since $T^*_{\mathrm{grok}}=200$
+for all five); $k=3$ and $k=4$ hold with the same margin as modular
+arithmetic (ratio range $11.3\times$--$48.3\times$). We regard this bound
+as loose --- a factor of ten to fifty above the tightest possible bound is
+not a tight prediction --- and that looseness is expected given we
+deliberately did not fit $\bar{c}$ (\S\ref{sec:clock_theory}); what we take
+as informative is that the bound holds cleanly on every run with a genuine
+delayed-generalization transition and fails on every run without one.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/fig6_weight_decay_clock.pdf}
+\caption{The weight-decay clock as a lower bound. \textbf{Left:}
+$T^*_{\mathrm{grok}}$ vs.\ $\tau_c$ by family, with the $y=x$ line marking
+where the bound would be tight; points sit above it, not on it, consistent
+with an intentionally unfitted, conservative bound. \textbf{Right:} the
+$T^*/\tau_c$ ratio distribution by family.}
+\label{fig:clock}
+\end{figure}
+
+\paragraph{Robustness to the bound's one free parameter.} Since $\rho=0.8$
+was a stated default, not fitted, we recompute the bound across
+$\rho\in\{0.1,0.3,0.5,0.8,0.9\}$ --- a full order of magnitude in $\tau_c$
+(full table, Appendix~\ref{app:extratables}). Modular arithmetic holds at
+$15/15$ throughout; parity holds at exactly $10/15$ for every value except
+the most lenient ($\rho=0.9$), where the bound becomes too loose to be
+informative. This is the behavior of a genuine effect, not an artifact of
+one convenient parameter: the $k=2$ exception survives a full order of
+magnitude of strictness and disappears only when the bound stops testing
+anything at all.
+
+\subsection{Disentangling $S_4$'s non-convergence}
+\label{sec:disentangle}
+
+Neither $S_4$ nor $D_4$ reaches our grokking threshold at any tested
+weight decay: $D_4$ at $\{1.0, 2.0\}$ and $S_4$ at $\{0.5, 1.0, 2.0\}$, five
+seeds each (full per-condition table, Appendix~\ref{app:extratables}). This
+rules out weight decay alone as $S_4$'s explanation, though the result is
+mixed rather than a clean resolution: $D_4$ shows substantial, consistent
+partial generalization across all ten of its runs (validation accuracy
+$11$--$46\%$, mean $28.5\%$, against a $12.5\%$ chance rate for
+$8$-way classification), while $S_4$ shows essentially none across all
+fifteen of its runs ($3$--$9\%$, mean $5.7\%$, against a $4.2\%$ chance
+rate for $24$-way classification). Group size or complexity plausibly
+matters --- $D_4$ is a third the elements and a ninth the total training
+pairs of $S_4$ --- but partial generalization without full convergence is
+not evidence for a specific mechanism. We report this as genuinely
+unresolved rather than resolve it in either direction.
+
+\subsection{Robustness: rank tracks structure, not optimizer speed}
+\label{sec:robustness}
+
+A structural claim should not depend on the optimizer knob that sets
+training \emph{speed}. Sweeping modular arithmetic's smallest prime across
+weight decay $\{0.5,1.0,3.0,4.0,6.0\}$ (three seeds each; full results in
+Figure~\ref{fig:h1zp}, Appendix~\ref{app:extrafigs}), plateau rank among
+the nine converging runs stays in a comparable range ($14.0$--$23.5$)
+while $T^*_{\mathrm{grok}}$ varies far more and non-monotonically, from
+$2{,}800$ to $15{,}600$ steps, with complete non-convergence at
+$\lambda=6.0$. Stable structure alongside timing that varies by more than
+$5\times$ and fails outright at the high end is what a representation-
+theoretic account predicts and a pure-timing account would not; with only
+six of fifteen sweep runs failing to converge, we treat this as
+suggestive, not independent statistical weight, for \S\ref{sec:h1_results}.
+
+\FloatBarrier
+\section{Discussion and Limitations}
+\label{sec:discussion}
+
+\textbf{H2 is a genuine negative result.} We checked it three ways before
+accepting it: two independent statistical tests that agree it is not
+supported, a $k$-sweep showing a real $k$-dependent split, not
+averaged-out noise, and replication across three independent full runs
+with identical results. We have no positive account of what
+\emph{does} restore a precursor on $k$-sparse parity beyond the weight-norm
+mechanism prior work already established
+\citep{truong2026weightnorm,truong2026normseparation}; closing that gap is
+the natural next question, not one this paper answers.
+
+\textbf{The clock is deliberately the unfitted, weaker claim.} The bound we
+find is loose (ratios $10\times$--$50\times$, not near $1\times$). A
+tighter, calibrated version almost certainly exists --- that is the
+content of \citet{truong2026weightnorm} --- but we lack its calibration
+procedure, and testing a weaker claim honestly seemed preferable to
+reconstructing a stronger one we could not verify.
+
+\textbf{Multiplicity-one, and $S_4$ vs.\ $D_4$, are open questions we
+narrowed but did not close.} Remark~\ref{rem:multiplicity} and
+Appendix~\ref{app:multiplicity} show a second independent embedding of a
+non-abelian irrep can add rank past the bound we test; if $S_4$ or $D_4$
+converges under a different recipe, the bound needs re-checking, not
+assumed. The disentangling grid (\S\ref{sec:disentangle}) rules out
+weight decay alone as $S_4$'s blocker; we see architecture depth/width
+and longer training at $D_4$'s scale (already extended fivefold for
+$S_4$, with no effect) as the two most promising next steps.
+
+\textbf{Scale, and relation to coset-based accounts.} All experiments run
+on a single T4 GPU within four hours, deliberately --- but this means our
+largest task ($S_4$, order $24$) is still small next to the literature
+reverse-engineering \emph{converged} $S_5$/$S_6$ circuits
+\citep{stander2024grokking}. We do not reconcile our isotypic account
+with their coset-based one (\S\ref{sec:related}): both may describe the
+same solution differently, and since neither $S_4$ nor $D_4$ converges
+here, we can only say, via Lemma~\ref{lem:bound}, what a compatible bound
+would look like if they did.
+
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+We set out to explain why rank collapse precedes grokking reliably on
+modular arithmetic but not on sparse parity. A representation-theoretic
+bound (Lemma~\ref{lem:bound}) explains the asymmetry's structural half
+cleanly, confirmed across three independent replications and extended,
+honestly, to a non-abelian group. It does not explain the timing half:
+the natural fix we proposed for parity does not work, tested two
+independent ways. In its place, an unrelated, independently derived
+weight-decay clock provides a genuine --- if loose --- account of
+timing, with a robustness property (\S\ref{sec:clock}) we verified
+rather than assumed. We think a bound honestly reported as explaining
+part of what it was built to explain, not all of it, is more useful to
+the next person who tests it than a narrower story would have been.
+
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\newpage
+\appendix
+
+\section*{Appendix Overview}
+\addcontentsline{toc}{section}{Appendix Overview}
+
+The appendix is organized to mirror the paper's own argument rather than
+simply collecting leftovers. Appendix~\ref{app:extrafigs} and
+Appendix~\ref{app:extratables} hold figures and tables that are discussed
+in the main body but whose full form did not fit within the page limit ---
+every number in them is cited exactly as shown here, nothing is
+summarized or approximated on the way in. Appendices~\ref{app:multiplicity}
+and~\ref{app:chartables} give the mathematical machinery behind
+\S\ref{sec:theory} in full: the numerical checks that justify treating
+multiplicity-one as forced for abelian groups and as an assumption for
+non-abelian ones, and the two character tables the entire $S_4$/$D_4$
+analysis depends on, each verified two independent ways before being
+trusted. Appendices~\ref{app:metric_robustness} and~\ref{app:walsh_bias}
+document two methodological decisions --- which effective-rank statistic
+to use, and why the Walsh alignment score needs an out-of-sample
+correction --- that shaped every number reported in \S\ref{sec:results}.
+Appendix~\ref{app:s4failure} gives the qualitative picture behind
+\S\ref{sec:disentangle}'s headline claim, and Appendix~\ref{app:fullconfig}
+closes with a single, complete reference table for every hyperparameter,
+sweep, and seed used anywhere in this paper.
+
+\FloatBarrier
+\section{Additional Figures}
+\label{app:extrafigs}
+
+The three figures below are referenced from the main body but placed here
+to keep the main body within the page limit; none of them are new
+content, and each is discussed in full at the point the main text cites
+it. We include them here, rather than describing them only in words,
+because a rank-collapse claim is easiest to check by eye, and because the
+qualitative pattern in each figure --- a circle of frequencies collapsing
+to a handful of points, a rank trajectory falling and staying flat, a
+robustness sweep that moves timing without moving structure --- carries
+information a summary statistic alone does not.
+
+Figure~\ref{fig:concept} illustrates the structural contrast
+\S\ref{sec:intro} motivates the paper with: why a network solving modular
+arithmetic has a small subspace available to collapse into, and why a
+network solving sparse parity does not. Figure~\ref{fig:asymmetry} makes
+that same contrast empirical, plotting the trained rank trajectories
+themselves rather than describing them. Figure~\ref{fig:h1zp} then closes
+the loop on H1 (\S\ref{sec:h1_results}): its left panel is an independent,
+concentration-based version of the $\mathbb{Z}_p$-only correlation, and
+its right panel is the weight-decay robustness check of
+\S\ref{sec:robustness}, showing structure staying fixed while timing
+moves --- the dissociation a purely representation-theoretic account
+predicts and a pure-timing account does not.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/fig1_isotypic_bottleneck.pdf}
+\caption{The structural asymmetry Lemma~\ref{lem:bound} formalizes.
+\textbf{Left:} modular arithmetic's non-trivial irreps are all
+two-dimensional rotations; a converged circuit using a handful of
+frequencies is confined to a low-dimensional subspace by construction.
+\textbf{Right:} sparse parity's irreps (Walsh characters) are all
+one-dimensional and combinatorially numerous; there is no analogous small
+subspace for an SQ-hard solution to collapse into
+(Conjecture~\ref{conj:parity}).}
+\label{fig:concept}
+\end{figure}
+
+This structural picture is a prediction until it is checked against
+trained networks. Figure~\ref{fig:asymmetry} shows exactly that check,
+using the same participation-ratio statistic used throughout
+\S\ref{sec:results}, aggregated across every seed in each family.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/fig2_rank_collapse_contrast.pdf}
+\caption{The documented asymmetry, mean $\pm 95\%$ CI, dotted line marking
+mean grokking onset. \textbf{Left:} modular arithmetic's participation
+ratio collapses as the circuit consolidates. \textbf{Right:} sparse
+parity shows no comparable collapse around its own grokking transition.
+This asymmetry, observed directly in our own runs, is
+the phenomenon Lemma~\ref{lem:bound} and Conjecture~\ref{conj:parity}
+explain.}
+\label{fig:asymmetry}
+\end{figure}
+
+Finally, Figure~\ref{fig:h1zp} reports two checks on H1 that are secondary
+to the pooled cross-family test of \S\ref{sec:h1_results} but strengthen
+it: an alternative structural statistic that agrees with the
+dimension-weighted bound, and a robustness sweep that would break the
+representation-theoretic story if it failed.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/fig4_h1_and_dissociation.pdf}
+\caption{H1 on $\mathbb{Z}_p$ alone, and the structure/timing dissociation.
+\textbf{Left:} plateau rank vs.\ Fourier concentration (an alternative,
+concentration-based structural statistic rather than the dimension-weighted
+bound used elsewhere in this section), $r=-0.97$
+($p=1.7\times10^{-9}$, $n=15$) --- more concentrated spectral support
+predicts a smaller collapsed rank, the same relationship
+Table~\ref{tab:h1honesty} tests on the dimension-weighted axis. \textbf{Right:}
+the weight-decay robustness check of \S\ref{sec:robustness} --- plateau
+rank stays flat across weight decay while $T^*_{\mathrm{grok}}$ shifts, the
+dissociation a purely representation-theoretic account predicts and a
+pure-timing account does not.}
+\label{fig:h1zp}
+\end{figure}
+
+\section{Additional Results Tables}
+\label{app:extratables}
+
+Three tables are collected here, each the full version of a result
+summarized in prose in the main body. In every case the summary in
+\S\ref{sec:results} states the specific numbers that matter for the
+paper's argument; what follows here is the complete breakdown those
+summaries are drawn from, so a reader who wants to check a particular
+seed, sparsity level, or weight-decay value against the aggregate claim
+can do so directly.
+
+Table~\ref{tab:ksweep} is the source of \S\ref{sec:ablation}'s central
+observation: that averaging over $k$ hides a real, $k$-dependent split
+rather than genuine noise, with $k=2$ behaving nothing like $k=3$ or
+$k=4$ on either statistic reported.
+
+\begin{table}[t]
+\caption{Ablation over sparsity $k$ (sparse parity, $n=5$ seeds per $k$).}
+\label{tab:ksweep}
+\centering
+\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+$k$ & Mean plateau rank & Mean Walsh-score (deg.\ $\le\!1$) lead & $n$ \\
+\midrule
+$2$ & $2.85$ & $-640$ & $5$ \\
+$3$ & $29.37$ & $1960$ & $5$ \\
+$4$ & $15.20$ & $-1440$ & $5$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:rho} is the source of \S\ref{sec:clock}'s robustness claim
+for the weight-decay clock: the fraction of runs clearing the bound at
+each of five tested values of the clock's one free parameter $\rho$,
+spanning a full order of magnitude. The pattern that matters is that
+parity's shortfall from a perfect $15/15$ is the \emph{same} $10/15$ at
+every value except the most lenient one tested, where the bound becomes
+too loose to be informative at all.
+
+\begin{table}[t]
+\caption{Fraction of runs where $T^*_{\mathrm{grok}} > \tau_c$, by family
+and $\rho$. The $k=2$ exception (parity's shortfall from $15/15$) persists
+across a full order of magnitude in $\rho$ and vanishes only at the most
+lenient value tested.}
+\label{tab:rho}
+\centering
+\small
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Family & $\rho=0.1$ & $\rho=0.3$ & $\rho=0.5$ & $\rho=0.8$ & $\rho=0.9$ \\
+\midrule
+Modular & $15/15$ & $15/15$ & $15/15$ & $15/15$ & $15/15$ \\
+Parity & $10/15$ & $10/15$ & $10/15$ & $10/15$ & $15/15$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:grid} is the source of \S\ref{sec:disentangle}'s
+disentangling result: grokking rate and mean validation accuracy for
+every group/weight-decay combination tested, showing that non-convergence
+is uniform across the whole grid, while validation accuracy itself is not
+--- the per-condition detail behind the $11$--$46\%$ vs.\ $3$--$9\%$
+contrast reported in the main text.
+
+\begin{table}[t]
+\caption{Disentangling grid: grokking rate and mean final validation
+accuracy by group and weight decay, five seeds per cell. Neither group
+reaches our $0.95$ grokking threshold at any tested value.}
+\label{tab:grid}
+\centering
+\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Group & Weight decay & Grok rate & Mean final val.\ acc. \\
+\midrule
+$D_4$ & $1.0$ & $0/5$ & $30.8\%$ \\
+$D_4$ & $2.0$ & $0/5$ & $26.2\%$ \\
+$S_4$ & $0.5$ & $0/5$ & $5.7\%$ \\
+$S_4$ & $1.0$ & $0/5$ & $4.9\%$ \\
+$S_4$ & $2.0$ & $0/5$ & $6.6\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Multiplicity Verification (Remark~\ref{rem:multiplicity})}
+\label{app:multiplicity}
+
+Section~\ref{sec:theory} states, but does not prove in the main text, a
+distinction that turns out to matter a great deal for how the results in
+\S\ref{sec:h1_results} should be read: multiplicity-one is a forced
+consequence of group structure for abelian groups like $\mathbb{Z}_p$, but
+only an assumption --- motivated, not implied --- for non-abelian groups
+like $S_4$ and $D_4$. This appendix is where that distinction is actually
+checked, rather than merely asserted, because Lemma~\ref{lem:bound} is
+true regardless of which case applies and it would be easy to let the
+lemma's generality quietly stand in for a claim it does not by itself
+make. We check both directions of the distinction directly: does a second,
+independently embedded copy of the same irrep add rank, or not, for a
+representative abelian and a representative non-abelian group?
+
+\textbf{$\mathbb{Z}_7$ (abelian).} We build a $7\times 8$ embedding matrix
+using frequency $k=1$'s two-dimensional real irrep, applied to one
+reference vector $v_0\in\mathbb{R}^2$ and embedded into $\mathbb{R}^8$ via
+a random weight matrix; its numerical rank is $2$, exactly the
+multiplicity-one prediction. We then add a second, independently embedded
+copy of the \emph{same} frequency --- an independent reference vector
+$v_0'$ and independent embedding weights, summed into the same matrix ---
+and check whether this pushes the rank past $2$. It does not: the rank
+stays at $2$. The reason is structural, not a coincidence of this
+particular random draw: for an abelian group, a non-trivial real irrep's
+action $\rho_k(t)$ is multiplication by a single complex scalar, so
+$t \mapsto \rho_k(t)v_0$ and $t \mapsto \rho_k(t)v_0'$ are both real-linear
+combinations of the \emph{same} pair of basis functions of $t$ ($\cos$ and
+$\sin$ at frequency $k$) regardless of which reference vector is used ---
+there is no way to choose $v_0'$ that escapes this $2$-dimensional span.
+This is why $n_i=1$ is forced rather than assumed for $\mathbb{Z}_p$: the
+group structure itself leaves no room for a second copy to matter.
+
+\textbf{$S_4$ (non-abelian).} We repeat the same experiment with $S_4$'s
+$3$-dimensional standard representation: one reference vector
+$v_0\in\mathbb{R}^3$, embedded into $\mathbb{R}^{10}$, gives a $24\times
+10$ matrix of numerical rank $3$, again matching the multiplicity-one
+prediction exactly. Adding a second, independently embedded copy of the
+\emph{same} irrep --- an independent reference vector $v_0'$, independent
+weights --- this time pushes the rank to $6$, not $3$. The mechanism is
+the mirror image of the abelian case: because $S_4$ is non-abelian,
+$\rho(g)$ is a genuine $3\times 3$ matrix rather than a scalar, so distinct
+reference vectors are \emph{not} forced into the same $3$-dimensional
+function space, and a second copy can add real rank --- up to the full
+ceiling of $d_i^2=9$ set by that irrep's own multiplicity in the regular
+representation, though our two-copy check here only demonstrates that the
+ceiling is above $3$, not that it is reached. This is the concrete sense in
+which multiplicity-one is an assumption for $S_4$ and $D_4$ rather than a
+forced consequence: nothing in the group's structure alone rules out a
+higher-rank solution, and the bound we test empirically in
+\S\ref{sec:h1_results} depends on the network's converged solution
+happening not to use one.
+
+All ranks reported above are computed with
+\texttt{numpy.linalg.matrix\_rank} at tolerance $10^{-8}$ on
+double-precision matrices built from i.i.d.\ standard normal reference
+vectors and embedding weights, seed $0$; we do not report a sweep over
+seeds here because the underlying claim is about the achievable rank of a
+specific linear-algebraic construction, not a statistical property that
+varies run to run.
+
+\FloatBarrier
+\section{$S_4$ and $D_4$ Character Table Verification}
+\label{app:chartables}
+
+Every isotypic-energy computation in this paper --- the predicted bound
+in Table~\ref{tab:h1honesty}, the irrep-energy breakdown in
+Figure~\ref{fig:h1}, the sanity checks below --- ultimately rests on two
+hand-assembled character tables, for $S_4$ and $D_4$. A character table is
+a small object, easy to transcribe correctly by eye and just as easy to
+get subtly wrong: a single transposed sign or a character placed under
+the wrong conjugacy class would silently propagate into every downstream
+number without producing an obviously invalid result. We treat this as
+serious enough to check two independent ways before trusting either
+table for anything else in the paper. The first check, Burnside's
+identity ($\sum_i d_i^2 = |G|$), confirms the dimensions are internally
+consistent but would not catch a sign error or a transposed entry, since
+it only sums squared dimensions and never touches the character values
+themselves. The second, full row orthogonality with conjugacy-class-size
+weighting ($\sum_{c} |c|\,\chi_{\rho}(c)\overline{\chi_{\rho'}(c)} =
+|G|\,\delta_{\rho\rho'}$ for every pair of irreps $\rho,\rho'$), is a much
+stronger check: it must hold exactly for every pair of rows, and a single
+wrong sign anywhere in the table will violate it. Both tables below pass
+both checks exactly, not approximately.
+
+\begin{table}[h]
+\caption{$S_4$ character table (conjugacy classes: identity, transpositions
+($6$), double transpositions ($3$), $3$-cycles ($8$), $4$-cycles ($6$)).
+Verified: $\sum d_i^2 = 1+1+4+9+9=24=|S_4|$; all $\binom{5}{2}+5=15$
+row-orthogonality relations hold exactly.}
+\label{tab:s4chars}
+\centering
+\small
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Irrep (dim) & $e$ & $(12)$ & $(12)(34)$ & $(123)$ & $(1234)$ \\
+\midrule
+Trivial ($1$) & $1$ & $1$ & $1$ & $1$ & $1$ \\
+Sign ($1$) & $1$ & $-1$ & $1$ & $1$ & $-1$ \\
+Two-dim.\ ($2$) & $2$ & $0$ & $2$ & $-1$ & $0$ \\
+Standard ($3$) & $3$ & $1$ & $-1$ & $0$ & $-1$ \\
+Standard$\,\otimes\,$sign ($3$) & $3$ & $-1$ & $-1$ & $0$ & $1$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\caption{$D_4$ character table (conjugacy classes: $e$, $r^2$, $\{r,r^3\}$,
+$\{s,r^2s\}$, $\{rs,r^3s\}$). Verified: $\sum d_i^2=1+1+1+1+4=8=|D_4|$; all
+row-orthogonality relations hold exactly.}
+\label{tab:d4chars}
+\centering
+\small
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Irrep (dim) & $e$ & $r^2$ & $\{r,r^3\}$ & $\{s,r^2s\}$ & $\{rs,r^3s\}$ \\
+\midrule
+Trivial ($1$) & $1$ & $1$ & $1$ & $1$ & $1$ \\
+$\chi_2$ ($1$) & $1$ & $1$ & $1$ & $-1$ & $-1$ \\
+$\chi_3$ ($1$) & $1$ & $1$ & $-1$ & $1$ & $-1$ \\
+$\chi_4$ ($1$) & $1$ & $1$ & $-1$ & $-1$ & $1$ \\
+Two-dim.\ ($2$) & $2$ & $-2$ & $0$ & $0$ & $0$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A verified character table is only useful if the projection machinery
+built on top of it is also correct. The isotypic-energy decomposition
+used throughout \S\ref{sec:h1_results} was additionally verified two
+further ways, on synthetic data where the right answer is known in
+advance: (i) that the energy fractions it computes sum to exactly $1.0$
+on a random embedding, for both groups --- confirming the projections are
+a complete decomposition, not one that leaks energy or double-counts it
+--- and (ii) that it recovers the exact true dimension when applied to a
+synthetic embedding constructed to lie purely within one irrep's isotypic
+component, for every irrep of both groups (Table~\ref{tab:s4sanity}). The
+second check is the more informative one: it directly tests whether the
+decomposition correctly attributes energy to the irrep that actually
+generated it, which is exactly what the predicted-bound computation in
+\S\ref{sec:h1_results} depends on.
+
+\begin{table}[h]
+\caption{$S_4$ isotypic-energy sanity check. A synthetic embedding built
+purely from one irrep places $>99\%$ of its energy there and recovers that
+irrep's exact dimension as the predicted bound.}
+\label{tab:s4sanity}
+\centering
+\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Test & Energy on target irrep & Predicted bound & True dim \\
+\midrule
+Random embedding & (sums to $1.000$ across all irreps) & -- & -- \\
+Pure trivial & $1.000$ & $1$ & $1$ \\
+Pure sign & $1.000$ & $1$ & $1$ \\
+Pure two-dim.\ & $1.000$ & $2$ & $2$ \\
+Pure standard & $1.000$ & $3$ & $3$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\FloatBarrier
+\section{Effective Rank Metric Robustness}
+\label{app:metric_robustness}
+
+Every result in \S\ref{sec:h1_results} and \S\ref{sec:ablation} depends
+on a single choice made early in this project and easy to take for
+granted: which of several reasonable definitions of ``effective rank'' to
+actually compute at every evaluation step. The naive candidates --- a hard
+numerical-rank threshold, or the entropy-based effective rank common in
+the representation-geometry literature --- are both far more sensitive to
+the small amount of noise present in any real trained network than the
+participation-ratio form we use throughout this paper, and using the
+wrong one would have made every plateau-rank number in
+\S\ref{sec:results} substantially less trustworthy without necessarily
+looking wrong on its face. This appendix is the check that motivated the
+choice: we inject additive Gaussian noise of increasing scale into a
+matrix of known true isotypic dimension $4$ and compare the participation
+ratio against the entropy-based effective rank and a hard $99\%$-energy
+numerical-rank threshold (Table~\ref{tab:metricrobust}). The contrast is
+stark rather than marginal: at a moderate noise level of $0.2$, the
+entropy form has already inflated to more than thirteen times the true
+value, while the participation ratio has drifted to only about two and a
+half times it. The participation ratio degrades far more gracefully across
+the entire tested range, which is why it is the statistic reported
+everywhere in the main text.
+
+\begin{table}[h]
+\caption{Effective rank under additive noise, true isotypic dimension $4$.}
+\label{tab:metricrobust}
+\centering
+\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Noise scale & Participation ratio & Entropy rank & $99\%$-energy rank & $\sigma_1$ \\
+\midrule
+$0.00$ & $3.96$ & $3.99$ & $4$ & $23.42$ \\
+$0.02$ & $4.01$ & $12.64$ & $4$ & $23.41$ \\
+$0.05$ & $4.26$ & $24.80$ & $39$ & $23.42$ \\
+$0.10$ & $5.22$ & $38.99$ & $56$ & $23.47$ \\
+$0.20$ & $9.65$ & $52.28$ & $61$ & $23.75$ \\
+$0.40$ & $28.28$ & $59.87$ & $63$ & $25.06$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\FloatBarrier
+\section{Walsh Alignment Score: In-Sample Bias Check}
+\label{app:walsh_bias}
+
+H2 (\S\ref{sec:h2}) reports, honestly, that the Walsh alignment score does
+not restore a precursor on sparse parity. That negative result is only
+trustworthy if the score itself is measuring something real rather than
+an artifact of how it is fit, so this appendix documents the specific
+methodological problem an earlier version of the score had, and how it
+was fixed. The concern is a familiar one in high-dimensional regression:
+a degree-$2$ Walsh basis has $821$ features at $n=40$, comfortably enough
+to fit noise given a validation set of realistic size, so naively fitting
+and scoring the alignment score on the same batch risks reporting a
+strong-looking $R^2$ that reflects overfitting rather than genuine
+alignment between the hidden representation and the target's spectral
+structure. Table~\ref{tab:walshbias} reports the pure-noise $R^2$ for the
+in-sample and out-of-sample versions of the score at our configuration's
+actual probe sizes ($n=40$ inputs; degree $\le\!1$ has $41$ basis
+features, degree $\le\!2$ has $821$). The out-of-sample version --- fit on
+half of a dedicated probe batch and scored on the held-out half,
+decoupled entirely from the task's own validation set --- returns
+$R^2$ indistinguishable from zero on pure noise, as it should. This is
+the version used for every Walsh-score number reported anywhere in the
+main text.
+
+\begin{table}[h]
+\caption{Walsh alignment score bias check, pure-noise inputs.}
+\label{tab:walshbias}
+\centering
+\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Configuration & Probe size & Out-of-sample $R^2$ on pure noise \\
+\midrule
+Degree $\le\!1$ ($n=40$) & $2{,}500$ & $-0.035$ \\
+Degree $\le\!2$ ($n=40$) & $20{,}525$ & $-0.087$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The scale of the problem this avoids is worth stating plainly: in-sample
+scoring at realistic validation-set sizes for this configuration returned
+$R^2$ between $0.46$ and $0.91$ on the same pure-noise inputs across
+$k\in\{2,3,4\}$ before this fix --- numbers that would have looked like
+strong, genuine alignment on data containing no signal whatsoever. That
+gap is the entire reason \S\ref{sec:h2}'s negative result should be
+trusted: it was reached with a signal that reliably reports zero on data
+containing nothing, not one that would report a false positive under the
+slightest encouragement.
+
+\FloatBarrier
+\section{Qualitative Failure Diagnostic}
+\label{app:s4failure}
+
+The numbers in \S\ref{sec:disentangle} establish that $S_4$ never
+converges within budget; this appendix shows what that failure actually
+looks like over the course of training, which the aggregate statistics
+alone do not convey. Figure~\ref{fig:s4diag} shows accuracy and rank
+trajectories for \texttt{s4\_seed0}, the specific run our failure-analysis
+logic selects as most informative among every run in the paper that did
+not reach the grokking threshold: $S_4$'s failure to converge is
+prioritized for this diagnostic over any single non-positive-lead modular
+or parity run, since a network stuck at chance accuracy for its entire
+training budget is a more informative failure to visualize than a run
+that merely lacked a positive precursor lead. The pattern is unambiguous:
+train accuracy rises to essentially $1.0$ within the first few hundred
+steps, while validation accuracy remains near the $4.2\%$ chance rate for
+the full $99{,}999$-step budget. This is ordinary memorization with no
+generalization at all --- not a grokking transition that is merely slow
+or a run caught mid-transition, but a network that never begins to
+generalize in any of the roughly $500$ evaluations logged over its entire
+training run.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\textwidth]{figures/figS1_failure_case_diagnostic.pdf}
+\caption{Accuracy and participation ratio for \texttt{s4\_seed0} across the
+full $100{,}000$-step budget. Train accuracy saturates almost immediately;
+validation accuracy never rises above chance.}
+\label{fig:s4diag}
+\end{figure}
+
+
+\section{Complete Hyperparameter and Reproducibility Reference}
+\label{app:fullconfig}
+
+Every other appendix in this paper documents one specific methodological
+decision in depth; this one is the opposite in spirit, and closes the
+appendix deliberately for that reason: a single, complete reference table
+covering every architecture, optimizer setting, detection threshold,
+task configuration, seed, and hardware detail used anywhere in this
+paper, in one place, rather than scattered across the sections that each
+needed only part of it. Table~\ref{tab:fullconfig} was built by
+cross-checking every field against the exact \texttt{config.json} logged
+by the run that produced the numbers in \S\ref{sec:results} --- nothing
+here is reconstructed from memory or approximated. Values that were swept
+rather than held fixed are marked $\star$ and point to the section that
+reports the corresponding sweep, so a value that looks unfamiliar in
+isolation can always be traced back to the specific experiment that
+varied it.
+
+\begin{table}[h]
+\caption{Complete hyperparameter and reproducibility reference. $\star$: the
+parameter was varied in the sweep named in the Notes column; all unlabeled
+values were fixed across every reported run.}
+\label{tab:fullconfig}
+\centering
+\small
+\renewcommand{\arraystretch}{1.0}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.27\textwidth}>{\raggedright\arraybackslash}p{0.17\textwidth}>{\raggedright\arraybackslash}p{0.46\textwidth}@{}}
+\toprule
+\textbf{Parameter} & \textbf{Value} & \textbf{Notes} \\
+\midrule
+\multicolumn{3}{l}{\textit{Architecture --- modular, $S_4$, $D_4$ (transformer)}} \\
+\midrule
+Model dimension $d_{\mathrm{model}}$ & $128$ & fixed across all three tasks \\
+Transformer layers & $1$ & \\
+Attention heads & $4$ & head dim $=32$ \\
+FFN dimension $d_{\mathrm{mlp}}$ & $512$ & \\
+Input sequence length & $3$ & $[a,b,\texttt{=}]$ or $[g,h,\texttt{=}]$ \\
+Positional embedding init & $\mathcal{N}(0,0.02^2)$ & only parameter with a non-default init \\
+Other weights (attn.\ / MLP / embed.) & PyTorch default & not separately tuned \\
+Parameters & $214{,}656$ / $205{,}184$ / $201{,}088$ & modular ($p{=}113$) / $S_4$ / $D_4$ \\
+\midrule
+\multicolumn{3}{l}{\textit{Architecture --- sparse parity (MLP)}} \\
+\midrule
+Hidden width & $200$ & one hidden ReLU layer \\
+Parameters & $8{,}602$ & \\
+\midrule
+\multicolumn{3}{l}{\textit{Optimizer}} \\
+\midrule
+Algorithm & AdamW & decoupled weight decay \citep{loshchilov2019decoupled} \\
+Learning rate $\eta$ & $10^{-3}$ & fixed, all tasks \\
+Weight decay $\lambda$ & $2.0$ / $0.7$ & modular, $S_4$, $D_4$ / parity \\
+& $\star$ & swept \S\ref{sec:disentangle}: $S_4\in\{0.5,1.0,2.0\}$, $D_4\in\{1.0,2.0\}$ \\
+& $\star$ & swept \S\ref{sec:robustness}: modular $\in\{0.5,1.0,3.0,4.0,6.0\}$ \\
+Momentum $\beta_1$ & $0.9$ & \\
+Second moment $\beta_2$ & $0.98$ & \\
+Batch size & full-batch & entire training set per step; varies by task, $38$ ($D_4$) to $5{,}107$ (modular, $p{=}113$) \\
+Max.\ training steps & $20$k / $40$k / $100$k & modular / parity / $S_4$, $D_4$ \\
+Eval.\ interval & every $200$ steps & \\
+\midrule
+\multicolumn{3}{l}{\textit{Detection thresholds}} \\
+\midrule
+Grokking threshold & val.\ acc.\ $\ge 0.95$ & \\
+Sustain requirement & $5$ consec.\ evals.\ & plus $15$ additional evals.\ before early stop \\
+Clock free parameter $\rho$ & $0.8$ & unfitted default; $\star$ swept \S\ref{sec:clock}: $\{0.1,0.3,0.5,0.8,0.9\}$ \\
+Isotypic energy threshold & $90\%$ & fewest irreps whose energy sums to this \\
+Fourier top-$k$ (modular) & $4$ & non-DC frequencies \\
+Walsh degree bound & $\le\!2$ & degree-$1$ is the primary signal (\S\ref{sec:h2}) \\
+\midrule
+\multicolumn{3}{l}{\textit{Tasks and data}} \\
+\midrule
+Modular addition & $(a+b) \bmod p$ & $p\in\{61,97,113\}$; train frac.\ $0.4$ \\
+Sparse parity & $\mathrm{sign}(\prod_{i\in S}x_i)$ & $n{=}40$, $k\in\{2,3,4\}$; train frac.\ $0.7$; samples $\{3{,}000,4{,}000,6{,}000\}$ for $k{=}\{2,3,4\}$ \\
+$S_4$ composition & order $24$, $576$ pairs & train frac.\ $0.6$ ($345$ train pairs) \\
+$D_4$ composition & order $8$, $64$ pairs & train frac.\ $0.6$ ($38$ train pairs) \\
+\midrule
+\multicolumn{3}{l}{\textit{Seeds and hardware}} \\
+\midrule
+Seeds & $\{0,\ldots,4\}$ & $5$ per main configuration \\
+& $\{0,1,2\}$ & $3$ per robustness-sweep point (\S\ref{sec:robustness}) \\
+RNG scope & Python, NumPy, PyTorch & seeded jointly per run \\
+Hardware & NVIDIA Tesla T4 & single GPU per run \\
+Peak GPU memory & $780$\,MB & \\
+Training runs (total) & $70$ & $15$ modular $+$ $15$ parity $+$ $5$ $S_4$ $+$ $5$ $D_4$ $+$ $15$ modular robustness ($5$ wd $\times$ $3$ seeds) $+$ $5$ $D_4$ grid $+$ $10$ $S_4$ grid (new-training seeds only; wd$=2.0$ folded in from the main runs, not retrained) \\
+Total wall-clock & $15{,}205$\,s ($4.2$\,h) & mean $217$\,s/run \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\end{document}
