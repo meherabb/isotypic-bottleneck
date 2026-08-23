@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this code or reference this work, please cite it as below."
+title: "The Isotypic Bottleneck: A Representation-Theoretic Bound on Rank Collapse During Grokking, and Its Limits as a Precursor Signal"
+authors:
+  - name: "Anonymous Author(s)"
+date-released: 2026-08-24
+license: MIT
+abstract: >
+  Effective-rank collapse has been proposed as an early, computationally
+  cheap precursor to grokking, but it reliably precedes generalization on
+  modular arithmetic while failing on sparse parity. This repository
+  contains the representation-theoretic account of that asymmetry, the
+  full experimental notebook (70 GPU runs, T4), every figure and result
+  table reported in the paper, and the LaTeX source.
+  Author identity withheld: this submission is under double-blind review.
+preferred-citation:
+  type: conference-paper
+  title: "The Isotypic Bottleneck: A Representation-Theoretic Bound on Rank Collapse During Grokking, and Its Limits as a Precursor Signal"
+  authors:
+    - name: "Anonymous Author(s)"
+  year: 2026
+  conference:
+    name: "NeurReps 2026 (Symmetry and Geometry in Neural Representations, NeurIPS Workshop) -- submission under double-blind review"
