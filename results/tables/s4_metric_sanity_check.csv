@@ -1,0 +1,6 @@
+test,energy_sum,note,energy_there,predicted_bound,true_dim
+random embedding,1.0,should be 1.0,,,
+pure 'trivial' embedding,,,1.0,1.0,1.0
+pure 'sign' embedding,,,1.0,1.0,1.0
+pure 'two_dim' embedding,,,1.0,2.0,2.0
+pure 'standard' embedding,,,1.0,3.0,3.0

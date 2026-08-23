@@ -1,0 +1,6 @@
+test,r,p,n,caveat
+pooled (Z_p + S4 + D4),0.7256377957361044,4.043768209514761e-05,25,"includes S4, which has zero within-family x-variance -- contributes only a fixed point, not a real within-family test"
+pooled excluding S4 (Z_p + D4),0.974236714629778,4.325715630995094e-13,20,tests whether pooled significance survives dropping the family that cannot contribute within-family evidence
+within Z_p (cyclic) only,0.8659169231921389,3.010543825935506e-05,15,
+within S4 (non-abelian) only,,,5,undefined (zero x-variance)
+within D4 (non-abelian) only,0.63218209908895,0.25248520766080973,5,

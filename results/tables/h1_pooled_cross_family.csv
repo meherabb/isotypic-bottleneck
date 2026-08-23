@@ -1,0 +1,26 @@
+run_id,family,predicted_bound,measured_rank
+modular_p61_seed0,Z_p (cyclic),20,14.839175360543388
+modular_p61_seed1,Z_p (cyclic),22,15.86649333106147
+modular_p61_seed2,Z_p (cyclic),18,14.2859787940979
+modular_p61_seed3,Z_p (cyclic),20,14.962583780288696
+modular_p61_seed4,Z_p (cyclic),18,12.707624626159667
+modular_p97_seed0,Z_p (cyclic),16,11.57538070678711
+modular_p97_seed1,Z_p (cyclic),14,11.331351672901826
+modular_p97_seed2,Z_p (cyclic),14,13.354553985595704
+modular_p97_seed3,Z_p (cyclic),12,11.474591255187988
+modular_p97_seed4,Z_p (cyclic),16,10.840779645102364
+modular_p113_seed0,Z_p (cyclic),12,9.337891459465027
+modular_p113_seed1,Z_p (cyclic),18,14.410648822784424
+modular_p113_seed2,Z_p (cyclic),16,11.667630767822265
+modular_p113_seed3,Z_p (cyclic),14,11.017935180664063
+modular_p113_seed4,Z_p (cyclic),14,11.475150108337402
+s4_seed0,S4 (non-abelian),8,11.89885461807251
+s4_seed1,S4 (non-abelian),8,13.352641201019287
+s4_seed2,S4 (non-abelian),8,16.234746685028075
+s4_seed3,S4 (non-abelian),8,13.297037715911864
+s4_seed4,S4 (non-abelian),8,12.588315620422364
+d4_seed0,D4 (non-abelian),4,2.844412717819214
+d4_seed1,D4 (non-abelian),4,3.8423945116996765
+d4_seed2,D4 (non-abelian),5,3.632658829689026
+d4_seed3,D4 (non-abelian),5,3.9894360184669493
+d4_seed4,D4 (non-abelian),4,2.8043644404411316

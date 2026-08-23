@@ -1,0 +1,8 @@
+signal,n,lead_mean_ci,p_values,rank_biserial_r,bonferroni_significant
+modular:lead_participation_ratio,15,"387 [27, 880]",0.015 / 0.059,0.67,no
+modular:lead_weight_norm,15,"400 [-80, 1027]",0.098 / 0.696,0.44,no
+modular:lead_fourier_conc,15,"-400 [-480, -320]",1.000 / 1.000,-1.0,no
+parity:lead_participation_ratio,15,"-253 [-813, 587]",0.971 / 1.000,-0.57,no
+parity:lead_weight_norm,15,"4067 [1200, 6987]",0.005 / 0.151,0.75,yes
+parity:lead_walsh_score,15,"-40 [-867, 1000]",0.819 / 0.982,-0.27,no
+parity:lead_walsh_score_deg1,15,"573 [-1507, 3307]",0.744 / 0.941,-0.19,no

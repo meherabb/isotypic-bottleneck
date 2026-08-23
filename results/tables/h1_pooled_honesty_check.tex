@@ -1,0 +1,15 @@
+\begin{table}
+\caption{H1 pooled correlation, reported with the caveat a bare pooled number hides: pooled, pooled excluding S4, and within each family separately. Read this before quoting the pooled r alone.}
+\label{tab:h1honesty}
+\begin{tabular}{lrrrl}
+\toprule
+Comparison & r & p & n & Caveat \\
+\midrule
+pooled (Z\_p + S4 + D4) & 0.726 & 4.04e-05 & 25 & includes S4, which has zero within-family x-variance -- contributes only a fixed point, not a real within-family test \\
+pooled excluding S4 (Z\_p + D4) & 0.974 & 4.33e-13 & 20 & tests whether pooled significance survives dropping the family that cannot contribute within-family evidence \\
+within Z\_p (cyclic) only & 0.866 & 3.01e-05 & 15 & -- \\
+within S4 (non-abelian) only & -- & -- & 5 & undefined (zero x-variance) \\
+within D4 (non-abelian) only & 0.632 & 0.252 & 5 & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
