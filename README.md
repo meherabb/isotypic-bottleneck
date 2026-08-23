@@ -31,7 +31,6 @@ This project gives a **representation-theoretic account** of that asymmetry:
 - **A clearly labeled conjecture, not a theorem**, for the parity side: sparse parity's relevant symmetry group has irreps (Walsh characters) that are all 1-dimensional and combinatorially numerous. Under SQ-hardness, the optimizer can't consolidate onto a small subset of them — so no analogous collapse is *expected*. The paper is explicit that this is a hypothesis it tests, not something it proves.
 - **Empirical confirmation on cyclic groups**, replicated across three independent full runs, extended honestly to a non-abelian group (the dihedral group D₄) with an explicit account of which part of the pooled evidence is actually load-bearing.
 - **A tested, and failed, natural fix** for parity: a representation-theoretic alignment score doesn't restore a usable precursor either — reported as a negative result, not hidden.
-- **An unrelated, independently-motivated finding reported alongside it**: a weight-decay-driven timing bound that holds as a genuine lower bound on generalization time in 25 of 30 runs, with the five exceptions being *exactly* the five runs that independently fail a delayed-generalization diagnostic.
 - **A controlled disentangling experiment** on why the symmetric group S4 never converges at all — reported as genuinely mixed, not forced into a clean story.
 
 The paper's own stance, stated in its closing line, is the one this repository tries to live up to:
@@ -61,18 +60,13 @@ flowchart TD
     ParTest --> Fix["Natural fix tried:<br/>Walsh-alignment score<br/>instead of raw rank"]
     Fix --> H2["H2: fails too<br/>7 comparisons tested,<br/>none survive Bonferroni correction"]
 
-    ModCollapse -.->|"tested on both task families"| Clock["Independent finding:<br/>weight-decay clock,<br/>timing lower bound, holds 25/30 runs"]
-    ParTest -.-> Clock
-
     classDef success fill:#d4edda,stroke:#28a745,color:#155724
     classDef failure fill:#f8d7da,stroke:#dc3545,color:#721c24
     classDef theory fill:#d1ecf1,stroke:#17a2b8,color:#0c5460
-    classDef neutral fill:#e2e3e5,stroke:#6c757d,color:#383d41
 
     class ModCollapse success
     class ParHigh,ParTest,H2 failure
     class Lemma,Conj theory
-    class Clock neutral
 ```
 
 <sub>Both branches feed into the theory, not just one: the proven Lemma explains the collapse on modular arithmetic, and the (explicitly unproven, explicitly tested) Conjecture is the paper's account of why parity shouldn't collapse either — the two are kept visually and terminologically distinct here because the paper keeps them distinct.</sub>
@@ -93,7 +87,7 @@ All numbers below are pulled directly from [`results/tables/`](results/tables/) 
 
 **H2 — the natural fix for parity does not work** ([`h2_lead_time_significance_compact.csv`](results/tables/h2_lead_time_significance_compact.csv)): across all 7 signal/task comparisons tested, only one nominally crosses the Bonferroni threshold (parity weight-norm, *p* = 0.005) — and it disagrees with its own sign-test cross-check (*p* = 0.151), and it's the mechanism prior work already established, not this paper's contribution. The primary comparison (Walsh alignment score, degree ≤ 1) is not significant (*p* = 0.744).
 
-**The weight-decay clock** ([`weight_decay_clock.csv`](results/tables/weight_decay_clock.csv)): holds as a lower bound in 25/30 runs; the 5 exceptions are exactly the 5 *k*=2 sparse-parity runs, which independently turn out to solve the task immediately rather than exhibit a genuine delayed-generalization transition ([`ablation_k_sweep.csv`](results/tables/ablation_k_sweep.csv)).
+**The k=2 exception** ([`ablation_k_sweep.csv`](results/tables/ablation_k_sweep.csv)): averaging sparse parity over *k* ∈ {2, 3, 4} hides that *k*=2 solves the task immediately (*t*=200, identical across every seed) rather than exhibiting genuine delayed generalization — that's the Conjecture's own precondition failing to hold, not the theory being wrong. *k*=3 and *k*=4 look nothing like it.
 
 **Disentangling S4 vs. D₄** ([`nonabelian_wd_grid_summary.csv`](results/tables/nonabelian_wd_grid_summary.csv)): neither group reaches the grokking threshold at any tested weight decay, but D₄ shows substantial partial generalization (11–46%, mean 28.5%, vs. 12.5% chance) where S4 shows essentially none (3–9%, mean 5.7%, vs. 4.2% chance) — evidence the two groups differ, without pinning down why.
 
@@ -103,7 +97,7 @@ All numbers below are pulled directly from [`results/tables/`](results/tables/) 
 </p>
 <p align="center"><sub>Left: the documented asymmetry this paper explains. Right: H1 across ℤ<sub>p</sub>, S4, and D₄, with the pooled and load-bearing correlations shown together rather than the pooled number standing alone.</sub></p>
 
-All 7 figures (main body + supplementary) are in [`results/figures/`](results/figures/) as PNG, and in [`paper/figures/`](paper/figures/) as the vector PDFs the LaTeX source actually compiles against.
+All 6 figures (main body + supplementary) are in [`results/figures/`](results/figures/) as PNG, and in [`paper/figures/`](paper/figures/) as the vector PDFs the LaTeX source actually compiles against.
 
 ## Repository structure
 
